@@ -121,7 +121,7 @@ export interface PR {
  * Detecta récords de una sesión frente al historial previo del mismo ejercicio:
  * - e1RM: mejor 1RM estimado (Epley)
  * - carga: más peso que nunca
- * - reps: más repeticiones que nunca con ese peso (o más)
+ * - reps: más repeticiones que nunca con ese mismo peso
  */
 export function detectPRs(ex: Exercise, sessionSets: LoggedSet[], history: ExerciseSession[]): PR[] {
   const work = sessionSets.filter((s) => s.kind === 'work' && s.exerciseId === ex.id);
@@ -137,10 +137,10 @@ export function detectPRs(ex: Exercise, sessionSets: LoggedSet[], history: Exerc
   const prevMax = Math.max(...prevSets.map((s) => s.kg));
   const nowMax = Math.max(...work.map((s) => s.kg));
   if (nowMax > prevMax) out.push({ exerciseId: ex.id, kind: 'carga', value: nowMax, previous: prevMax, text: `Carga máxima ${nowMax} kg (antes ${prevMax})` });
-  // Reps: mejor marca de repeticiones a un peso igual o mayor que nunca
+  // Reps: más repeticiones que nunca con exactamente ese peso
   const repsPR = work
     .map((s) => {
-      const prevAt = prevSets.filter((p) => p.kg >= s.kg).reduce((a, p) => Math.max(a, p.reps), 0);
+      const prevAt = prevSets.filter((p) => Math.abs(p.kg - s.kg) < 0.01).reduce((a, p) => Math.max(a, p.reps), 0);
       return prevAt > 0 && s.reps > prevAt ? { s, prevAt } : null;
     })
     .filter(Boolean)
