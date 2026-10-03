@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Database, Plus, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Database, Plus, Timer, TrendingDown, TrendingUp, Trophy, Weight } from 'lucide-react';
+import { MuscleMap } from '@/components/MuscleMap';
 import { useMemo, useState } from 'react';
 import { ChartCard } from '@/components/Chart';
 import { NumberTicker } from '@/components/ui/NumberTicker';
@@ -89,6 +90,24 @@ export default function Progress() {
 
   const totalVol = sessions.reduce((a, s) => a + s.volumeKg, 0);
   const rank = rankFor(totalXp(sessions, perWeek));
+  const freq = (() => {
+    const weeks = Array.from({ length: 8 }).map((_, i) => {
+      const w = addDays(startOfWeek(), -7 * (7 - i));
+      const end = addDays(w, 7);
+      const n = sessions.filter((x) => {
+        const d = new Date(x.date);
+        return d >= w && d < end;
+      }).length;
+      return { n, label: `${w.getDate()}` };
+    });
+    return { weeks, avg: weeks.reduce((a, w) => a + w.n, 0) / weeks.length };
+  })();
+  const recentMuscles: Partial<Record<Muscle, number>> = {};
+  const since4 = addDays(startOfWeek(), -21);
+  for (const x of sessions) if (new Date(x.date) >= since4) for (const [m, v] of Object.entries(x.muscles)) recentMuscles[m as Muscle] = (recentMuscles[m as Muscle] ?? 0) + (v ?? 0);
+  const maxRecent = Math.max(0, ...Object.values(recentMuscles).map((v) => v ?? 0));
+  const muscleNorm = Object.fromEntries(Object.entries(recentMuscles).map(([m, v]) => [m, maxRecent ? (v ?? 0) / maxRecent : 0])) as Partial<Record<Muscle, number>>;
+  const topMuscle = (Object.entries(recentMuscles).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as Muscle | undefined) ?? null;
   const medalList = medals(sessions, perWeek);
   const avgDur = sessions.length ? sessions.reduce((a, s) => a + s.durationSec, 0) / sessions.length : 0;
   const stalled = suggestions.filter((s) => s.stalled);
@@ -110,16 +129,55 @@ export default function Progress() {
         </Rise>
       )}
 
-      <Rise className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Kpi label="Sesiones" value={sessions.length} />
-        {totalVol >= 10000 ? <Kpi label="Volumen total" value={Math.round(totalVol / 100) / 10} decimals={1} suffix="t" /> : <Kpi label="Volumen total" value={Math.round(totalVol)} suffix="kg" />}
-        <Kpi label="Récords" value={sessions.reduce((a, s) => a + s.prs.length, 0)} />
-        <Kpi label="Duración media" text={mmss(avgDur)} sub={`meta ≤ ${mmss(budget)}`} />
-      </Rise>
-
-      <Rise as="section" className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.3fr]">
-        <RankCard state={rank} />
-        <div>
+      {/* ───── Bento: tarjetas modulares; en móvil se apilan en una columna ───── */}
+      <Rise as="section" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumen">
+        <div className="sm:col-span-2 lg:row-span-2 [&>section]:h-full">
+          <RankCard state={rank} />
+        </div>
+        <Tile icon={<CalendarCheck size={18} />} label="Sesiones" value={sessions.length} sub={`${freq.avg.toFixed(1)} por semana (últimas 8)`} />
+        <Tile
+          icon={<Weight size={18} />}
+          label="Volumen total"
+          value={totalVol >= 10000 ? Math.round(totalVol / 100) / 10 : Math.round(totalVol)}
+          decimals={totalVol >= 10000 ? 1 : 0}
+          suffix={totalVol >= 10000 ? 't' : 'kg'}
+          sub="kilos × repeticiones"
+        />
+        <Tile icon={<Trophy size={18} />} label="Récords" value={sessions.reduce((a, s) => a + s.prs.length, 0)} sub={prs[0] ? `Último: ${getExercise(prs[0].exerciseId).name}` : 'Supera tu mejor e1RM'} accent />
+        <Tile icon={<Timer size={18} />} label="Duración media" text={mmss(avgDur)} sub={`meta ≤ ${mmss(budget)}`} />
+        <div className="card p-5 sm:col-span-2">
+          <div className="mb-3 flex items-baseline justify-between">
+            <span className="eyebrow">Frecuencia semanal</span>
+            <span className="num text-xs text-muted">meta {perWeek}/sem</span>
+          </div>
+          <div className="flex h-24 items-end gap-1.5" role="img" aria-label={`Sesiones por semana, últimas 8: ${freq.weeks.map((w) => w.n).join(', ')}`}>
+            {freq.weeks.map((w, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                <motion.div
+                  className={`w-full rounded-t-sm ${w.n >= perWeek ? 'bg-ember' : 'bg-ember/35'}`}
+                  initial={{ height: 0 }}
+                  animate={{ height: `${Math.max(4, (w.n / Math.max(perWeek, ...freq.weeks.map((x) => x.n))) * 80)}px` }}
+                  transition={{ delay: i * 0.04, type: 'spring', stiffness: 220, damping: 22 }}
+                />
+                <span className="num text-[10px] text-muted">{w.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card p-5 sm:col-span-2 lg:row-span-2">
+          <div className="mb-1 flex items-baseline justify-between">
+            <span className="eyebrow">Actividad por músculo · 4 semanas</span>
+          </div>
+          {topMuscle ? (
+            <p className="text-sm">
+              Más trabajado: <span className="font-semibold text-ember">{MUSCLE_LABEL[topMuscle]}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted">Sin sesiones recientes.</p>
+          )}
+          <MuscleMap values={muscleNorm} className="mx-auto mt-2 h-60 w-full" />
+        </div>
+        <div className="sm:col-span-2">
           <div className="mb-3 flex items-center gap-3">
             <h2 className="h-display shrink-0 text-[26px]">Medallas</h2>
             <span className="h-px flex-1 bg-line" aria-hidden />
@@ -289,16 +347,40 @@ function groupSets(sets: { exerciseId: string; kind: string; kg: number; reps: n
   return [...m.entries()];
 }
 
-function Kpi({ label, value, suffix, text, sub, decimals = 0 }: { label: string; value?: number; suffix?: string; text?: string; sub?: string; decimals?: number }) {
+function Tile({
+  icon,
+  label,
+  value,
+  suffix,
+  text,
+  sub,
+  decimals = 0,
+  accent
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: number;
+  suffix?: string;
+  text?: string;
+  sub?: string;
+  decimals?: number;
+  accent?: boolean;
+}) {
   return (
-    <div className="card px-4 py-3">
-      <div className="num text-3xl font-semibold">
-        {text ?? <NumberTicker value={value ?? 0} decimals={decimals} />}
-        {suffix && <span className="ml-0.5 text-base text-muted">{suffix}</span>}
+    <motion.div whileHover={{ y: -2 }} className={`card relative overflow-hidden p-5 ${accent ? 'border-ember/50' : ''}`}>
+      {accent && <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-ember/15 blur-2xl" aria-hidden />}
+      <div className="relative flex items-center gap-2 text-muted">
+        <span className="text-ember" aria-hidden>
+          {icon}
+        </span>
+        <span className="eyebrow">{label}</span>
       </div>
-      <div className="text-xs text-muted">{label}</div>
-      {sub && <div className="text-[10px] text-muted/80">{sub}</div>}
-    </div>
+      <div className="num relative mt-3 text-[40px] font-semibold leading-none">
+        {text ?? <NumberTicker value={value ?? 0} decimals={decimals} />}
+        {suffix && <span className="ml-1 text-lg text-muted">{suffix}</span>}
+      </div>
+      {sub && <div className="relative mt-2 truncate text-xs text-muted">{sub}</div>}
+    </motion.div>
   );
 }
 

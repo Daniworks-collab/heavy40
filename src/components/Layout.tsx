@@ -41,7 +41,7 @@ export function Layout() {
   return (
     <div className="lg:flex">
       {/* Sidebar escritorio */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-5 py-8 lg:flex">
+      <aside className="glass sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r px-5 py-8 lg:flex">
         <Logo size={30} />
         <p className="mt-2 text-xs text-muted">Hipertrofia · cualquier split · tu tiempo</p>
         <nav className="mt-10 flex flex-col gap-1" aria-label="Principal">
@@ -75,7 +75,7 @@ export function Layout() {
       {/* Tab bar móvil */}
       <nav
         aria-label="Principal"
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/90 backdrop-blur-md lg:hidden"
+        className="glass safe-bottom fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
       >
         <div className="mx-auto grid max-w-md grid-cols-5">
           {MAIN.map((n) => (

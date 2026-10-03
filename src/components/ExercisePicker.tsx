@@ -51,7 +51,7 @@ export function ExercisePicker({ open, onClose, onSelect, title, initialMuscle =
 
   return (
     <Sheet open={open} onClose={onClose} title={title} eyebrow="Catálogo" wide>
-      <div className="sticky top-0 z-10 -mx-5 space-y-3 bg-surface px-5 pb-3">
+      <div className="sticky top-0 z-10 -mx-5 space-y-3 bg-surface/95 px-5 pb-3">
         <label className="relative block">
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input className="field pl-11" placeholder="Buscar ejercicio" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar ejercicio" />

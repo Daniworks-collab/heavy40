@@ -8,16 +8,26 @@ Fuente de verdad visual. Generado a partir de **UI/UX Pro Max** (`--design-syste
 - **Desviaciones conscientes del plugin:** se conserva la paleta del brief (brasa #FF4A1C en vez de naranja #F97316 + verde), y Big Shoulders Display en vez de Barlow Condensed (mismo carácter condensado deportivo; ya autoalojada).
 
 ## Tokens
-| Rol | Forja (oscuro) | Hueso (claro) |
+| Rol | Forja (oscuro, gris — no negro puro) | Hueso (claro) |
 |---|---|---|
-| bg | #0A0A0B | #EDE6DA |
-| surface | #151517 | #E4DCCE |
-| line | #2A2D31 | #C4BAA8 |
+| bg | #121215 | #EDE6DA |
+| surface | #1C1D21 | #E4DCCE |
+| raised (controles) | #27292E | #DBD2C2 |
+| line (decorativo) | #36393F | #C4BAA8 |
+| line2 (bordes de control, ≥3:1) | #70757D | #787062 |
 | fg | #EDE6DA | #121213 |
-| muted | #9699A0 (AA) | #58544D |
-| ember | #FF4A1C | #D0340C |
+| muted (AA ≥4.5:1) | #A8ACB4 | #58544D |
+| ember | #FF4D1F | #D0340C |
+
+Contraste verificado con `npm run contrast` (36 comprobaciones en 3 temas).
 
 Radios: `sm 3 · DEFAULT 4 · md 5 · lg 7 · xl 8 · 2xl 10` px. Botón principal sin radio: **placa biselada** (clip-path, 12 px).
+
+## Fase 2
+- **Glassmorphism sólo en acentos**: `.glass` (78 % de opacidad + blur 18 px) en barra de navegación, sidebar y modales; sólido en Alto contraste.
+- **HOY con divulgación progresiva**: mensaje motivador, entrenamiento de hoy con anillo y botón de 72 px, racha semanal; sesión, tiempo, otros días y avisos en secciones colapsables.
+- **Progreso en bento grid**: rango 2×2, métricas 1×1, frecuencia 2×1, actividad por músculo 2×2; una columna en móvil.
+- **Números grandes**: steppers de carga/reps a 52 px con botones de 64 px.
 
 ## Componentes firma
 - `.card-forge` — tarjeta con marcas de registro brasa en esquinas opuestas (héroes, rango, sesión en vivo).

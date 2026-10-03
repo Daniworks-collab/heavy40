@@ -5,21 +5,22 @@
 /* ───────── Tokens "Forja" ───────── */
 :root,
 [data-theme='forja'] {
-  --bg: 10 10 11;          /* carbón #0A0A0B */
-  --surface: 21 21 23;     /* humo   #151517 */
-  --raised: 29 30 33;      /*        #1D1E21 */
-  --line: 42 45 49;        /* acero  #2A2D31 */
-  --line2: 58 62 68;
-  --muted: 150 153 160;    /* AA sobre carbón */
-  --fg: 237 230 218;       /* hueso  #EDE6DA */
-  --ember: 255 74 28;      /* brasa  #FF4A1C */
-  --ember-hot: 255 112 66;
-  --ember-deep: 194 55 15;
+  /* Gris oscuro (no negro puro): menos fatiga visual con poca luz en el gimnasio */
+  --bg: 18 18 21;          /* grafito #121215 */
+  --surface: 28 29 33;     /* humo    #1C1D21 */
+  --raised: 39 41 46;      /* acero   #27292E (controles) */
+  --line: 54 57 63;        /* divisores decorativos #36393F */
+  --line2: 112 117 125;    /* bordes de control ≥3:1 #70757D */
+  --muted: 168 172 180;    /* texto secundario AA #A8ACB4 */
+  --fg: 237 230 218;       /* hueso   #EDE6DA */
+  --ember: 255 77 31;      /* brasa   #FF4D1F */
+  --ember-hot: 255 115 70;
+  --ember-deep: 200 58 18;
   --rust: 181 83 43;       /* óxido */
   --ok: 155 194 122;
   --warn: 232 176 74;
-  --onember: 10 10 11;
-  --grain-opacity: 0.06;
+  --onember: 14 14 16;
+  --grain-opacity: 0.05;
   color-scheme: dark;
 }
 
@@ -28,7 +29,7 @@
   --surface: 228 220 206;
   --raised: 219 210 194;
   --line: 196 186 168;
-  --line2: 170 160 142;
+  --line2: 120 112 98;
   --muted: 88 84 77;
   --fg: 18 18 19;
   --ember: 208 52 12;
@@ -198,7 +199,7 @@
     transform: scale(0.97);
   }
   .chip {
-    @apply press inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[13px] font-medium text-muted hover:border-line2 hover:text-fg;
+    @apply press inline-flex items-center gap-1.5 rounded-md border border-line2/90 px-3 py-1.5 text-[13px] font-medium text-muted hover:border-fg/60 hover:text-fg;
   }
   .chip[data-on='true'] {
     @apply border-ember bg-ember/[0.12] text-fg;
@@ -216,10 +217,20 @@
       inset 0 -3px 0 rgb(0 0 0 / 0.28);
   }
   .btn-ghost {
-    @apply btn border border-line bg-raised/40 text-fg hover:border-line2 hover:bg-raised;
+    @apply btn border border-line2 bg-raised/60 text-fg hover:border-fg/60 hover:bg-raised;
   }
   .field {
-    @apply min-h-[48px] w-full rounded-md border border-line bg-raised/60 px-4 text-base text-fg placeholder:text-muted/70 focus:border-ember focus:outline-none;
+    @apply min-h-[48px] w-full rounded-md border border-line2 bg-raised/70 px-4 text-base text-fg placeholder:text-muted/80 focus:border-ember focus:outline-none;
+  }
+  /* Glassmorphism sólo en acentos (navegación y modales). Opacidad alta para mantener contraste. */
+  .glass {
+    background-color: rgb(var(--surface) / 0.78);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border-color: rgb(var(--fg) / 0.08);
+  }
+  [data-theme='alto'] .glass {
+    background-color: rgb(var(--surface));
   }
   .tick-rule {
     background-image: repeating-linear-gradient(90deg, rgb(var(--line2)) 0 1px, transparent 1px 8px);

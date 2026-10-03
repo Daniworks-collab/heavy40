@@ -63,7 +63,7 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
-    meta?.setAttribute('content', theme === 'hueso' ? '#EDE6DA' : theme === 'alto' ? '#000000' : '#0A0A0B');
+    meta?.setAttribute('content', theme === 'hueso' ? '#EDE6DA' : theme === 'alto' ? '#000000' : '#121215');
   }, [theme]);
   return (
     <MotionConfig reducedMotion="user">

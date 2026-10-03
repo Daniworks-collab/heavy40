@@ -37,14 +37,14 @@ export function Sheet({ open, onClose, title, eyebrow, children, footer, wide }:
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center" role="dialog" aria-modal="true" aria-label={title}>
           <motion.div
-            className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-line bg-surface lg:rounded-3xl ${wide ? 'lg:max-w-3xl' : 'lg:max-w-lg'}`}
+            className={`glass relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border lg:rounded-3xl ${wide ? 'lg:max-w-3xl' : 'lg:max-w-lg'}`}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -73,7 +73,7 @@ export function Sheet({ open, onClose, title, eyebrow, children, footer, wide }:
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
               {children}
             </div>
-            {footer && <div className="safe-bottom border-t border-line bg-surface px-5 py-3">{footer}</div>}
+            {footer && <div className="safe-bottom border-t border-fg/10 px-5 py-3">{footer}</div>}
           </motion.div>
         </div>
       )}

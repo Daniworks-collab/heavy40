@@ -1,11 +1,11 @@
-import { motion } from 'framer-motion';
-import { AlertTriangle, ChevronRight, Flame, Moon, Play, ShieldCheck, Zap } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AlertTriangle, ChevronDown, ChevronRight, Flame, Moon, Play, ShieldCheck, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ReadinessSheet } from '@/components/Readiness';
 import { Logo } from '@/components/ui/Logo';
 import { NumberTicker } from '@/components/ui/NumberTicker';
-import { Page, Rise, SectionTitle } from '@/components/ui/Page';
+import { Page, Rise } from '@/components/ui/Page';
 import { Ring } from '@/components/ui/Ring';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { db, useLive as useDexie } from '@/db';
@@ -89,31 +89,61 @@ export function Today() {
   const nextAt = next ? new Date(next.date.getFullYear(), next.date.getMonth(), next.date.getDate(), lastHour) : null;
 
   const totalSets = featured.items.reduce((a, i) => a + i.workSets, 0);
+  const restDay = !isTrainingToday && !pick;
+  const message = motivation({ doneToday: doneToday && !pick, isTrainingToday: isTrainingToday || !!pick, thisWeek: streak.thisWeek, perWeek, weeks: streak.weeks, toNext: rank.toNext, nextRank: rank.next?.name, dayName: featured.name });
+  const alerts: { tone: 'warn' | 'ember'; node: React.ReactNode }[] = [];
+  if (since !== undefined && since < 48 && split?.restRule === 'sesion')
+    alerts.push({ tone: 'warn', node: <>Han pasado <span className="num">{Math.round(since)} h</span> desde tu última sesión. Tu split pide ≥48 h entre sesiones.</> });
+  if (deloadNow) alerts.push({ tone: 'ember', node: 'Semana de descarga: −40 % de series, −10 % de carga, sin fallo.' });
+  if (stalled.length >= 2 && !deloadNow)
+    alerts.push({
+      tone: 'ember',
+      node: (
+        <>
+          Sin mejorar en 3 sesiones: {stalled.slice(0, 3).map((id) => getExercise(id).name).join(', ')}.{' '}
+          <button className="font-semibold text-ember underline underline-offset-2" onClick={() => scheduleDeload(isoDate(addDays(startOfWeek(today), 7)))}>
+            Programar descarga
+          </button>
+        </>
+      )
+    });
+  if (deload.due && !deloadNow)
+    alerts.push({
+      tone: 'ember',
+      node: (
+        <>
+          {deload.reason}.{' '}
+          <Link to="/calendario" className="font-semibold text-ember underline underline-offset-2">
+            Planificar descarga
+          </Link>
+        </>
+      )
+    });
 
   return (
     <Page>
-      <Rise as="header" className="mb-6 flex items-center justify-between">
+      <Rise as="header" className="mb-5 flex items-center justify-between">
         <div className="lg:hidden">
           <Logo size={26} />
         </div>
-        <div className="eyebrow hidden lg:block">{WEEKDAY_LONG[today.getDay()]} · {shortDate(today)}</div>
-        <div className="flex items-center gap-2">
-          <span className="chip min-h-[44px]" title="Semanas seguidas con 3 sesiones" aria-label={`Racha: ${streak.weeks} semanas`}>
-            <Flame size={15} className={streak.weeks > 0 ? 'text-ember' : ''} aria-hidden />
-            <span className="num text-fg">{streak.weeks}</span>
-            <span className="hidden sm:inline">sem</span>
-          </span>
-          <Link to="/progreso" aria-label="Ver rango y medallas">
-            <RankChip state={rank} />
-          </Link>
+        <div className="eyebrow hidden lg:block">
+          {WEEKDAY_LONG[today.getDay()]} · {shortDate(today)}
         </div>
+        <Link to="/progreso" aria-label="Ver rango y medallas">
+          <RankChip state={rank} />
+        </Link>
       </Rise>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.25fr_1fr]">
-        {/* ───── Tarjeta principal ───── */}
+      <Rise className="mb-4">
+        <p className="eyebrow">{greeting(today)}</p>
+        <p className="mt-1 font-display text-[22px] font-bold uppercase leading-tight tracking-wide">{message}</p>
+      </Rise>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.25fr_1fr]">
+        {/* ───── Lo esencial: el entrenamiento de hoy ───── */}
         <Rise as="section" className="card-forge overflow-hidden p-5 lg:p-7">
           <div className="pointer-events-none absolute inset-0 grid-bg" aria-hidden />
-          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-ember/10 blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-ember/15 blur-3xl" aria-hidden />
           <span aria-hidden className="text-outline pointer-events-none absolute -bottom-10 -right-3 select-none font-display text-[220px] font-black leading-none lg:text-[280px]">
             {String(dayIndex + 1).padStart(2, '0')}
           </span>
@@ -140,123 +170,120 @@ export function Today() {
                 <span className="bg-ember px-1.5 leading-tight text-onember">D{String(dayIndex + 1).padStart(2, '0')}</span>
                 {WEEKDAY_LONG[featured.day.weekday]}
               </div>
-              <h1 className="h-display mt-1 text-[clamp(32px,10.5vw,44px)] sm:text-5xl lg:text-[40px] 2xl:text-5xl">{featured.name.split(' · ').map((p, i) => <span key={i} className="block">{p}</span>)}</h1>
+              <h1 className="h-display mt-1 text-[clamp(32px,10.5vw,44px)] sm:text-5xl lg:text-[40px] 2xl:text-5xl">
+                {(featured.name || `Día ${dayIndex + 1}`).split(' · ').map((p, i) => (
+                  <span key={i} className="block">
+                    {p}
+                  </span>
+                ))}
+              </h1>
             </div>
             <Ring value={featured.seconds / budget} size={wide ? 124 : 100} stroke={wide ? 9 : 8} label={`${Math.round(featured.seconds / 60)} de ${sessionMinutes} minutos`}>
               <div className="text-center leading-none">
-                <NumberTicker value={Math.round(featured.seconds / 60)} className={`block font-semibold ${wide ? "text-4xl" : "text-3xl"}`} />
+                <NumberTicker value={Math.round(featured.seconds / 60)} className={`block font-semibold ${wide ? 'text-4xl' : 'text-3xl'}`} />
                 <span className="eyebrow !text-[10px]">/{sessionMinutes} min</span>
               </div>
             </Ring>
           </div>
 
-          <PlanBar day={featured} budget={budget} />
+          <p className="relative mt-4 text-[15px] text-muted">
+            <span className="num font-semibold text-fg">{featured.items.length}</span> ejercicios ·{' '}
+            <span className="num font-semibold text-fg">{totalSets}</span> series efectivas · {MODE_LABEL[mode]}
+          </p>
 
-          <div className="relative mt-4 grid grid-cols-3 gap-2">
-            <Stat label="Ejercicios" value={featured.items.length} />
-            <Stat label="Series efectivas" value={totalSets} />
-            <Stat label="Fatiga" value={featured.fatigue} suffix="/24" />
-          </div>
-
-          {!isTrainingToday && !pick && nextAt && (
-            <div className="relative mt-5 rounded-lg border border-line bg-bg/60 p-4">
-              <div className="eyebrow mb-1">Cuenta regresiva · {WEEKDAY_LONG[next!.date.getDay()]}</div>
-              <div className="num text-3xl font-semibold tracking-tight">{countdown(nextAt.getTime() - now)}</div>
-              <p className="mt-1 text-sm text-muted">El músculo crece mientras descansas. El descanso también es parte del entrenamiento.</p>
+          {restDay && nextAt && (
+            <div className="relative mt-4 flex items-baseline justify-between gap-3 rounded-md border border-line bg-bg/60 px-4 py-3">
+              <span className="eyebrow">Faltan</span>
+              <span className="num text-2xl font-semibold tracking-tight">{countdown(nextAt.getTime() - now)}</span>
             </div>
           )}
 
-          {since !== undefined && since < 48 && (
-            <div className="hazard mt-4 flex gap-2 py-2.5 pr-3 text-sm">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-              <span>
-                Han pasado <span className="num">{Math.round(since)}</span> h desde tu última sesión. Tu split pide ≥48 h entre sesiones.
-              </span>
-            </div>
-          )}
-          {deloadNow && (
-            <div className="hazard-ember mt-4 flex gap-2 py-2.5 pr-3 text-sm">
-              <Zap size={16} className="mt-0.5 shrink-0 text-ember" aria-hidden />
-              <span>Semana de descarga: −40 % de series, −10 % de carga, sin fallo.</span>
-            </div>
-          )}
-
-          <div className="relative mt-5 flex flex-col gap-2 sm:flex-row">
+          <div className="relative mt-5">
             {liveActive ? (
-              <Link to="/entrenar" className="btn-ember min-h-[64px] flex-1 text-2xl">
-                <Play size={20} fill="currentColor" /> Continuar sesión
+              <Link to="/entrenar" className="btn-ember min-h-[72px] w-full text-2xl">
+                <Play size={22} fill="currentColor" /> Continuar sesión
+              </Link>
+            ) : featured.items.length === 0 ? (
+              <Link to="/rutina" className="btn-ember min-h-[72px] w-full text-xl">
+                Agregar ejercicios a este día
               </Link>
             ) : (
-              featured.items.length === 0 ? (
-                <Link to="/rutina" className="btn-ember min-h-[64px] flex-1 text-xl">
-                  Agregar ejercicios a este día
-                </Link>
-              ) : (
-                <motion.button whileTap={{ scale: 0.97 }} className="btn-ember min-h-[64px] flex-1 text-2xl" onClick={() => setReadyOpen(true)}>
-                  <Play size={20} fill="currentColor" /> Iniciar entrenamiento
-                </motion.button>
-              )
+              <motion.button whileTap={{ scale: 0.97 }} className="btn-ember min-h-[72px] w-full text-[clamp(19px,5.6vw,26px)]" onClick={() => setReadyOpen(true)}>
+                <Play size={24} fill="currentColor" /> {restDay ? 'Entrenar de todos modos' : 'Iniciar entrenamiento'}
+              </motion.button>
             )}
-          </div>
-          <div className="relative mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span>Entrenar otro día:</span>
-            {plan.days.map((d, i) => (
-              <button key={d.day.id} data-on={d.day.id === featuredId} className="chip min-h-[44px]" onClick={() => setPick(d.day.id === featuredId && pick ? null : d.day.id)}>
-                Día {i + 1}
-              </button>
-            ))}
           </div>
         </Rise>
 
-        {/* ───── Columna derecha ───── */}
-        <div className="space-y-5">
+        <div className="space-y-4">
+          {/* ───── Racha semanal ───── */}
           <Rise as="section" className="card p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <span className="eyebrow shrink-0">
-                Semana · <span className="num text-fg">{streak.thisWeek}/{perWeek}</span>
-              </span>
-              <Link to="/splits" className="chip !py-1" aria-label="Cambiar split">
-                {split?.name ?? 'Split'} · {MODE_LABEL[mode]}
-              </Link>
+            <div className="flex items-center gap-4">
+              <div className="relative grid h-16 w-16 shrink-0 place-items-center rounded-md bg-ember/15">
+                <Flame size={30} className={streak.weeks > 0 ? 'text-ember' : 'text-muted'} aria-hidden />
+                <span className="num absolute -bottom-1.5 -right-1.5 grid h-7 min-w-[28px] place-items-center rounded-sm bg-ember px-1 text-sm font-bold text-onember">{streak.weeks}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="eyebrow">Racha semanal</div>
+                <div className="font-display text-2xl font-black uppercase leading-tight">
+                  {streak.weeks} {streak.weeks === 1 ? 'semana' : 'semanas'}
+                </div>
+                <div className="text-sm text-muted">
+                  {streak.thisWeek >= perWeek
+                    ? 'Semana cerrada. Bien forjado.'
+                    : `Esta semana ${streak.thisWeek}/${perWeek} · te ${perWeek - streak.thisWeek === 1 ? 'falta' : 'faltan'} ${perWeek - streak.thisWeek}`}
+                </div>
+              </div>
             </div>
-            <WeekStrip doneDates={doneDates} today={today} />
+            <div className="mt-4">
+              <WeekStrip doneDates={doneDates} today={today} />
+            </div>
           </Rise>
 
-          {stalled.length >= 2 && !deloadNow && (
-            <Rise as="section" className="hazard-ember p-5">
-              <div className="eyebrow mb-1 text-ember">Estancamiento detectado</div>
-              <p className="text-sm">
-                Llevas 3 sesiones sin mejorar en {stalled.slice(0, 3).map((id) => getExercise(id).name).join(', ')}. Muchas veces la respuesta es más
-                descanso: una semana de descarga (−40 % series, −10 % carga).
-              </p>
-              <button className="btn-ghost mt-3 w-full" onClick={() => scheduleDeload(isoDate(addDays(startOfWeek(today), 7)))}>
-                Programar descarga la próxima semana
-              </button>
-            </Rise>
+          {/* ───── Lo demás, a un toque ───── */}
+          {alerts.length > 0 && (
+            <Disclosure title={`Avisos (${alerts.length})`} tone="warn">
+              <ul className="space-y-2">
+                {alerts.map((a, i) => (
+                  <li key={i} className={`${a.tone === 'warn' ? 'hazard' : 'hazard-ember'} flex gap-2 py-2.5 pr-3 text-sm`}>
+                    {a.tone === 'warn' ? <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden /> : <Zap size={16} className="mt-0.5 shrink-0 text-ember" aria-hidden />}
+                    <span>{a.node}</span>
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
           )}
-
-          {deload.due && !deloadNow && (
-            <Rise as="section" className="hazard-ember p-5">
-              <div className="eyebrow mb-1 text-ember">Descarga sugerida</div>
-              <p className="text-sm">{deload.reason}. Programa una semana de descarga en Recuperación.</p>
-              <Link to="/calendario" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-ember">
-                Planificar descarga <ChevronRight size={16} />
-              </Link>
-            </Rise>
-          )}
-
-          <Rise as="section">
-            <SectionTitle index="02" right={<Link to="/rutina" className="press inline-flex min-h-[44px] items-center text-sm text-muted hover:text-fg">Editar</Link>}>La sesión</SectionTitle>
+          <Disclosure title={`La sesión · ${featured.items.length} ejercicios`} right={<Link to="/rutina" className="text-sm text-muted hover:text-fg">Editar</Link>}>
             {sessions === undefined ? (
               <div className="space-y-2">
-                {[0, 1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16" />
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-14" />
                 ))}
               </div>
             ) : (
               <SessionList day={featured} />
             )}
-          </Rise>
+          </Disclosure>
+          <Disclosure title="Tiempo y carga">
+            <PlanBar day={featured} budget={budget} />
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <Stat label="Ejercicios" value={featured.items.length} />
+              <Stat label="Series efectivas" value={totalSets} />
+              <Stat label="Fatiga" value={featured.fatigue} suffix="/24" />
+            </div>
+          </Disclosure>
+          <Disclosure title="Entrenar otro día">
+            <div className="flex flex-wrap gap-2">
+              {plan.days.map((d, i) => (
+                <button key={d.day.id} data-on={d.day.id === featuredId} className="chip min-h-[48px]" onClick={() => setPick(d.day.id === featuredId && pick ? null : d.day.id)}>
+                  Día {i + 1} · {d.name || WEEKDAY_SHORT[d.day.weekday]}
+                </button>
+              ))}
+            </div>
+            <Link to="/splits" className="mt-3 inline-flex min-h-[44px] items-center gap-1 text-sm text-muted hover:text-fg">
+              Split: {split?.name ?? 'Mi split'} <ChevronRight size={14} aria-hidden />
+            </Link>
+          </Disclosure>
         </div>
       </div>
 
@@ -264,13 +291,62 @@ export function Today() {
         open={readyOpen}
         onClose={() => setReadyOpen(false)}
         defaultMinutes={sessionMinutes}
-        hoursSince={since}
+        hoursSince={split?.restRule === 'sesion' ? since : undefined}
         onDone={(r, minutes) => {
           setReadyOpen(false);
           void startWorkout(featured.day.id, r, minutes);
         }}
       />
     </Page>
+  );
+}
+
+function greeting(d: Date): string {
+  const h = d.getHours();
+  const part = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+  return `${part} · ${WEEKDAY_LONG[d.getDay()]} ${shortDate(d)}`;
+}
+
+/** Mensaje motivador según el estado de la semana (sin presión excesiva). */
+function motivation(o: { doneToday: boolean; isTrainingToday: boolean; thisWeek: number; perWeek: number; weeks: number; toNext: number; nextRank?: string; dayName: string }): string {
+  if (o.doneToday) return 'Trabajo hecho. Ahora come, duerme y crece.';
+  if (o.isTrainingToday) {
+    if (o.thisWeek + 1 === o.perWeek) return 'Hoy cierras la semana. Remátala.';
+    if (o.toNext > 0 && o.toNext <= 250 && o.nextRank) return `Estás a ${o.toNext} XP de ${o.nextRank}. Hoy lo alcanzas.`;
+    if (o.weeks >= 2) return `${o.weeks} semanas seguidas. Hoy suma otra.`;
+    return 'Hoy toca forjar. Una serie a la vez.';
+  }
+  if (o.thisWeek >= o.perWeek) return 'Semana completa. Descansa con orgullo.';
+  return 'Día de descanso: aquí es donde creces.';
+}
+
+/** Sección colapsable: lo secundario queda a un toque. */
+function Disclosure({ title, children, right, tone }: { title: string; children: React.ReactNode; right?: React.ReactNode; tone?: 'warn' }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Rise as="section" className="card overflow-hidden">
+      <div className="flex items-center gap-2 pr-4">
+        <button onClick={() => setOpen(!open)} aria-expanded={open} className="press flex min-h-[60px] flex-1 items-center gap-3 px-5 text-left">
+          {tone === 'warn' && <span className="h-2 w-2 shrink-0 animate-ember rounded-full bg-warn" aria-hidden />}
+          <span className="flex-1 font-display text-lg font-bold uppercase tracking-wide">{title}</span>
+          <ChevronDown size={18} className={`shrink-0 text-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden />
+        </button>
+        {right}
+      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-5">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Rise>
   );
 }
 
