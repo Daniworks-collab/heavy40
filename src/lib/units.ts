@@ -52,3 +52,15 @@ export function useUnits(): UnitsApi {
     fmt: (kg, withUnit = true) => fmtLoad(kg, unit, withUnit)
   };
 }
+
+const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
+
+/** Al cambiar de unidad, la barra y los incrementos por defecto pasan a sus equivalentes redondos. */
+export function unitSwitch(next: Unit, st: { barKg: number; increments: { upper: number; lower: number } }) {
+  const map = (v: number, kg: number, lb: number) => (next === 'lb' && near(v, kg) ? lb * KG_PER_LB : next === 'kg' && near(v, lb * KG_PER_LB) ? kg : v);
+  return {
+    units: next,
+    barKg: map(st.barKg, 20, 45),
+    increments: { upper: map(st.increments.upper, 2.5, 5), lower: map(st.increments.lower, 5, 10) }
+  };
+}

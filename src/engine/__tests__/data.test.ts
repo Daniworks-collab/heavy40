@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionRecord } from '@/db';
 import { bodyToCsv, csvKind, csvToBody, csvToSessions, parseCsv, sessionsToCsv, toCsv } from '@/lib/csv';
-import { fmtLoad, fromUnit, roundDisplay, toUnit } from '@/lib/units';
+import { fmtLoad, fromUnit, roundDisplay, toUnit, unitSwitch } from '@/lib/units';
 
 const session = (date: string, kg: number, reps: number, dayName = 'Pecho y espalda'): SessionRecord => ({
   date,
@@ -32,6 +32,16 @@ describe('unidades', () => {
     expect(roundDisplay(12.3, 'lb')).toBe(12.5);
     expect(fmtLoad(100, 'lb')).toBe('220 lb');
     expect(fmtLoad(60, 'kg')).toBe('60 kg');
+  });
+  it('al cambiar de unidad, barra e incrementos por defecto quedan redondos', () => {
+    const lb = unitSwitch('lb', { barKg: 20, increments: { upper: 2.5, lower: 5 } });
+    expect(roundDisplay(toUnit(lb.barKg, 'lb'), 'lb')).toBe(45);
+    expect(toUnit(lb.increments.upper, 'lb')).toBeCloseTo(5);
+    expect(toUnit(lb.increments.lower, 'lb')).toBeCloseTo(10);
+    const kg = unitSwitch('kg', lb);
+    expect(kg).toEqual({ units: 'kg', barKg: 20, increments: { upper: 2.5, lower: 5 } });
+    // Valores personalizados no se tocan
+    expect(unitSwitch('lb', { barKg: 15, increments: { upper: 1, lower: 2 } }).barKg).toBe(15);
   });
 });
 

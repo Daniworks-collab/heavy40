@@ -17,22 +17,9 @@ import { seedDemo } from '@/lib/demo';
 import { activeSplit, useApp, withDefaults, type Theme } from '@/store/app';
 import { Link } from 'react-router-dom';
 import { StylePicker } from '@/components/StylePicker';
-import { useUnits } from '@/lib/units';
+import { unitSwitch, useUnits } from '@/lib/units';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const LB = 0.45359237;
-const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
-
-/** Al cambiar de unidad, la barra y los incrementos por defecto pasan a sus equivalentes redondos. */
-function unitSwitch(next: 'kg' | 'lb', st: { barKg: number; increments: { upper: number; lower: number } }) {
-  const map = (v: number, kg: number, lb: number) => (next === 'lb' && near(v, kg) ? lb * LB : next === 'kg' && near(v, lb * LB) ? kg : v);
-  return {
-    units: next,
-    barKg: map(st.barKg, 20, 45),
-    increments: { upper: map(st.increments.upper, 2.5, 5), lower: map(st.increments.lower, 5, 10) }
-  };
-}
-
 function download(blob: Blob, name: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

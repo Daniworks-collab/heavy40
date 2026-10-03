@@ -13,8 +13,10 @@ import { calibrationLoad } from '@/engine/progression';
 import { computePlan } from '@/engine/recalc';
 import { spacingWarnings } from '@/engine/validate';
 import type { Equipment, Joint, Level, Mode, Muscle, Profile } from '@/engine/types';
-import { kg as fmtKg, mmss } from '@/lib/format';
-import { DEFAULT_SETTINGS, engineConfig, useApp } from '@/store/app';
+import { mmss } from '@/lib/format';
+import { unitSwitch, useUnits, type Unit } from '@/lib/units';
+import { Segmented } from '@/components/ui/Segmented';
+import { DEFAULT_SETTINGS, engineConfig, useApp, withDefaults } from '@/store/app';
 
 const PARQ = [
   '¿Algún médico te ha dicho que tienes un problema del corazón o de presión arterial?',
@@ -48,7 +50,11 @@ export function Onboarding() {
   const [priorities, setPriorities] = useState<Muscle[]>([]);
   const [mode, setMode] = useState<Mode>('adaptado');
   const [minutesAvail, setMinutesAvail] = useState(40);
+  // Calibración capturada en la unidad del usuario; se convierte a kg al calcular
   const [calib, setCalib] = useState<Record<string, { kg: number; reps: number }>>({});
+  const units = useUnits();
+  const updateSettings = useApp((s) => s.updateSettings);
+  const setUnit = (next: Unit) => updateSettings(unitSwitch(next, withDefaults(useApp.getState().settings)));
 
   const profile: Profile = { level, bodyweight: bw, equipment, injuries, priorities };
   const buildSplit = (): Split =>
@@ -82,7 +88,7 @@ export function Onboarding() {
 
   const finish = () => {
     const loads: Record<string, number> = {};
-    for (const [id, v] of Object.entries(calib)) if (v.kg > 0 && v.reps > 0) loads[id] = calibrationLoad(getExercise(id), v.kg, v.reps).load;
+    for (const [id, v] of Object.entries(calib)) if (v.kg > 0 && v.reps > 0) loads[id] = calibrationLoad(getExercise(id), units.fromDisp(v.kg), v.reps).load;
     complete({ profile, mode, weekdays: wds, loads, sessionMinutes: minutesAvail, split: buildSplit() });
     navigate('/', { replace: true });
   };
@@ -156,7 +162,27 @@ export function Onboarding() {
             ))}
           </div>
           <div className="mt-6">
-            <Stepper label="Peso corporal" unit="kg" value={bw} onChange={setBw} step={0.5} min={35} max={250} big />
+            <Segmented<Unit>
+              label="Unidad de peso"
+              value={units.unit}
+              onChange={setUnit}
+              options={[
+                { value: 'kg', label: 'Kilogramos' },
+                { value: 'lb', label: 'Libras' }
+              ]}
+            />
+            <div className="mt-4">
+              <Stepper
+                label="Peso corporal"
+                unit={units.label}
+                value={units.toDisp(bw)}
+                onChange={(v) => setBw(units.fromDisp(v))}
+                step={units.unit === 'kg' ? 0.5 : 1}
+                min={units.unit === 'kg' ? 35 : 77}
+                max={units.unit === 'kg' ? 250 : 550}
+                big
+              />
+            </div>
           </div>
         </Step>
       );
@@ -335,19 +361,19 @@ export function Onboarding() {
             {CALIB.map((id) => {
               const ex = getExercise(id);
               const v = calib[id] ?? { kg: 0, reps: 0 };
-              const res = v.kg > 0 && v.reps > 0 ? calibrationLoad(ex, v.kg, v.reps) : null;
+              const res = v.kg > 0 && v.reps > 0 ? calibrationLoad(ex, units.fromDisp(v.kg), v.reps) : null;
               return (
                 <div key={id} className="rounded-xl border border-line p-3">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-medium">{ex.name}</span>
                     {res && (
                       <span className="num shrink-0 text-sm text-ember">
-                        → {fmtKg(res.load)} kg × {res.target}
+                        → {units.fmt(res.load)} × {res.target}
                       </span>
                     )}
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    <input className="field num" inputMode="decimal" placeholder="kg" aria-label={`Carga ${ex.name}`} value={v.kg || ''} onChange={(e) => setCalib({ ...calib, [id]: { ...v, kg: parseFloat(e.target.value.replace(',', '.')) || 0 } })} />
+                    <input className="field num" inputMode="decimal" placeholder={units.label} aria-label={`Carga ${ex.name}`} value={v.kg || ''} onChange={(e) => setCalib({ ...calib, [id]: { ...v, kg: parseFloat(e.target.value.replace(',', '.')) || 0 } })} />
                     <input className="field num" inputMode="numeric" placeholder="reps" aria-label={`Repeticiones ${ex.name}`} value={v.reps || ''} onChange={(e) => setCalib({ ...calib, [id]: { ...v, reps: parseInt(e.target.value, 10) || 0 } })} />
                   </div>
                 </div>
