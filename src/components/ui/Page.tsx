@@ -1,14 +1,14 @@
-import { motion, type Variants } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform, type Variants } from 'motion/react';
 import type { ReactNode } from 'react';
 
 export const stagger: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.05, delayChildren: 0.04 } }
+  show: { transition: { staggerChildren: 0.04, delayChildren: 0.02 } }
 };
 
 export const rise: Variants = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 320, damping: 30 } }
+  show: { opacity: 1, y: 0, transition: { duration: 0.26, ease: [0.16, 1, 0.3, 1] } }
 };
 
 export function Page({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -35,12 +35,21 @@ export function Rise({ children, className = '', as = 'div' }: { children: React
 }
 
 export function PageTitle({ eyebrow, title, right }: { eyebrow?: string; title: string; right?: ReactNode }) {
+  // Parallax sutil de la marca de agua al hacer scroll (desactivado con movimiento reducido)
+  const reduce = useReducedMotion();
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 400], [0, reduce ? 0 : -48]);
+  const opacity = useTransform(scrollY, [0, 300], [1, reduce ? 1 : 0.2]);
   return (
     <Rise as="header" className="relative mb-7 flex items-end justify-between gap-4">
       {/* Marca de agua contorneada: el título repetido a escala monumental */}
-      <span aria-hidden className="text-outline pointer-events-none absolute -left-1 -top-6 select-none whitespace-nowrap font-display text-[120px] font-black uppercase leading-none lg:-top-10 lg:text-[180px]">
+      <motion.span
+        aria-hidden
+        style={{ y, opacity }}
+        className="text-outline pointer-events-none absolute -left-1 -top-6 select-none whitespace-nowrap font-display text-[120px] font-black uppercase leading-none lg:-top-10 lg:text-[180px]"
+      >
         {title}
-      </span>
+      </motion.span>
       <div className="relative">
         {eyebrow && (
           <div className="eyebrow mb-2 flex items-center gap-2">

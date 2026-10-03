@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { MODES, MODE_BLURB, MODE_LABEL } from '@/data/labels';
 import type { Effort, Mode } from '@/engine/types';
 import { useApp, withDefaults } from '@/store/app';

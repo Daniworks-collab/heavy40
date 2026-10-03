@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { evaluateReadiness, type Readiness } from '@/engine/readiness';

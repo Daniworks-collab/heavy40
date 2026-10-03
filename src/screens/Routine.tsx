@@ -1,7 +1,7 @@
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { ArrowDown, ChevronRight, GripVertical, Lock, Pencil, Plus, Replace, Sparkles, Trash2, Wand2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StylePicker } from '@/components/StylePicker';

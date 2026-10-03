@@ -1,6 +1,7 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { CalendarCheck, ChevronDown, Database, Plus, Timer, TrendingDown, TrendingUp, Trophy, Weight } from 'lucide-react';
 import { MuscleMap } from '@/components/MuscleMap';
+import { Tilt } from '@/components/Motion';
 import { useMemo, useState } from 'react';
 import { ChartCard } from '@/components/Chart';
 import { NumberTicker } from '@/components/ui/NumberTicker';
@@ -367,7 +368,7 @@ function Tile({
   accent?: boolean;
 }) {
   return (
-    <motion.div whileHover={{ y: -2 }} className={`card relative overflow-hidden p-5 ${accent ? 'border-ember/50' : ''}`}>
+    <Tilt className={`card relative overflow-hidden p-5 ${accent ? 'border-ember/50' : ''}`}>
       {accent && <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-ember/15 blur-2xl" aria-hidden />}
       <div className="relative flex items-center gap-2 text-muted">
         <span className="text-ember" aria-hidden>
@@ -380,7 +381,7 @@ function Tile({
         {suffix && <span className="ml-1 text-lg text-muted">{suffix}</span>}
       </div>
       {sub && <div className="relative mt-2 truncate text-xs text-muted">{sub}</div>}
-    </motion.div>
+    </Tilt>
   );
 }
 

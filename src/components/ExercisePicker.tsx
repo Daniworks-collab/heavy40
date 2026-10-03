@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Search, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EXERCISES } from '@/data/exercises';

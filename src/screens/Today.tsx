@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ChevronDown, ChevronRight, Flame, Moon, Play, ShieldCheck, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -23,6 +23,7 @@ import { hoursSinceLast, nextSession, sessionOn, streakWeeks, weekdayOf, weeksSi
 import { isDeloadWeek, useActiveSplit, useApp, useBudget, usePlan } from '@/store/app';
 import { rankFor, totalXp } from '@/lib/rank';
 import { RankChip } from '@/components/Rank';
+import { RevealText } from '@/components/Motion';
 import { useLive } from '@/store/live';
 
 function countdown(ms: number): string {
@@ -136,13 +137,16 @@ export function Today() {
 
       <Rise className="mb-4">
         <p className="eyebrow">{greeting(today)}</p>
-        <p className="mt-1 font-display text-[22px] font-bold uppercase leading-tight tracking-wide">{message}</p>
+        <p className="mt-1 font-display text-[22px] font-bold uppercase leading-tight tracking-wide">
+          <RevealText text={message} />
+        </p>
       </Rise>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.25fr_1fr]">
         {/* ───── Lo esencial: el entrenamiento de hoy ───── */}
         <Rise as="section" className="card-forge overflow-hidden p-5 lg:p-7">
           <div className="pointer-events-none absolute inset-0 grid-bg" aria-hidden />
+          <div className="beam" aria-hidden />
           <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-ember/15 blur-3xl" aria-hidden />
           <span aria-hidden className="text-outline pointer-events-none absolute -bottom-10 -right-3 select-none font-display text-[220px] font-black leading-none lg:text-[280px]">
             {String(dayIndex + 1).padStart(2, '0')}
@@ -413,7 +417,7 @@ function SessionList({ day }: { day: PrescribedDay }) {
           key={it.uid}
           initial={{ opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.05 + i * 0.04, type: 'spring', stiffness: 420, damping: 26 }}
+          transition={{ delay: 0.04 + i * 0.03, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
           className="relative flex items-center gap-3 overflow-hidden rounded-md border border-line bg-surface/80 py-2.5 pl-4 pr-3"
         >
           <span className={`absolute inset-y-0 left-0 w-[3px] ${it.priority >= 4 ? 'bg-ember' : 'bg-line2'}`} aria-hidden />

@@ -1,4 +1,4 @@
-import { MotionConfig } from 'framer-motion';
+import { MotionConfig } from 'motion/react';
 import { lazy, Suspense, useEffect } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { Layout } from './components/Layout';

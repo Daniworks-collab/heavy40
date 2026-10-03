@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'motion/react';
 import { MUSCLE_LABEL } from '@/data/labels';
 import type { Muscle } from '@/engine/types';
 

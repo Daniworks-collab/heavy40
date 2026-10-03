@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 /** Logotipo tipográfico HEAVY·40. El punto es un lingote de brasa. */
 export function Logo({ size = 28, className = '' }: { size?: number; className?: string }) {

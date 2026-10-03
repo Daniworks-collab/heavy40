@@ -1,10 +1,11 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Check, Copy, Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Page, PageTitle, Rise, SectionTitle } from '@/components/ui/Page';
 import { Sheet } from '@/components/ui/Sheet';
 import { Toggle } from '@/components/ui/Toggle';
+import { Tilt } from '@/components/Motion';
 import { MODE_LABEL, WEEKDAY_SHORT } from '@/data/labels';
 import { SPLIT_PRESETS, customSplit, spreadWeekdays, splitFromPreset, type Split, type SplitPreset } from '@/data/splits';
 import { useApp } from '@/store/app';
@@ -120,7 +121,8 @@ export default function Splits() {
         <SectionTitle index="03">Prearmados</SectionTitle>
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {SPLIT_PRESETS.map((p, i) => (
-            <motion.li key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+            <motion.li key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03, duration: 0.22 }}>
+              <Tilt className="h-full">
               <button onClick={() => setPreset(p)} className="card press flex h-full w-full flex-col p-4 text-left hover:border-line2">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-display text-2xl font-black uppercase leading-none">{p.name}</span>
@@ -129,6 +131,7 @@ export default function Splits() {
                 <p className="mt-2 line-clamp-2 text-sm text-muted">{p.desc}</p>
                 <div className="mt-auto pt-3 text-[11px] uppercase tracking-wider text-muted">Estilo sugerido: {MODE_LABEL[p.suggestedMode]}</div>
               </button>
+              </Tilt>
             </motion.li>
           ))}
         </ul>

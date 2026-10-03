@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { Database, Download, Sparkles, Trash2, Upload } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Page, PageTitle, Rise } from '@/components/ui/Page';

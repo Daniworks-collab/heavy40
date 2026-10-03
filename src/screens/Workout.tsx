@@ -1,8 +1,9 @@
-import { AnimatePresence, motion, type PanInfo } from 'framer-motion';
+import { AnimatePresence, motion, type PanInfo } from 'motion/react';
 import { Calculator, Check, ChevronLeft, ChevronRight, Info, Replace, Scissors, ShieldAlert, SkipForward, Trophy, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Shockwave, Sparks } from '@/components/Fx';
+import { SetCheck } from '@/components/Motion';
 import { MuscleMap } from '@/components/MuscleMap';
 import { NumberTicker } from '@/components/ui/NumberTicker';
 import { Ring } from '@/components/ui/Ring';
@@ -55,6 +56,7 @@ export default function Workout() {
   const [postFail, setPostFail] = useState<PostFail | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [lastKind, setLastKind] = useState<'warmup' | 'work'>('work');
   const [swapOpen, setSwapOpen] = useState(false);
   const [swapUndo, setSwapUndo] = useState<{ uid: string; from: string; to: string } | null>(null);
   const [techs, setTechs] = useState<string[]>([]);
@@ -166,6 +168,7 @@ export default function Workout() {
         setTimeout(() => setToast(null), 2600);
       }
     }
+    setLastKind(task.kind);
     setShock((s) => s + 1);
     if (settings.sound) anvil();
     if (settings.vibration) vibrate(task.kind === 'work' ? [40, 30, 70] : 30);
@@ -203,6 +206,7 @@ export default function Workout() {
   const progress = live.index / Math.max(1, live.tasks.length);
   const budget = live.budget || 2400;
   const remaining = budget - elapsed;
+  const sessionVolume = live.logs.filter((l) => l.kind === 'work').reduce((a, l) => a + l.kg * l.reps, 0);
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-xl flex-col px-4 pt-[max(env(safe-area-inset-top),12px)]">
@@ -217,6 +221,11 @@ export default function Workout() {
           </div>
           <div className="mt-1 flex items-center justify-center gap-2 text-[11px]">
             <span className="text-muted">transcurrido {mmss(elapsed)}</span>
+            {sessionVolume > 0 && (
+              <span className="num text-muted">
+                · <NumberTicker value={sessionVolume} duration={0.5} className="text-fg" /> kg
+              </span>
+            )}
             <span
               className={`num rounded-full px-2 py-0.5 font-semibold ${
                 behind > 60 ? 'bg-ember/15 text-ember' : behind < -30 ? 'bg-ok/15 text-ok' : 'bg-raised text-muted'
@@ -290,10 +299,9 @@ export default function Workout() {
           ) : task && item && ex ? (
             <motion.section
               key={task.id}
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -40 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+              initial={{ opacity: 0, x: 32 }}
+              animate={{ opacity: 1, x: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{ opacity: 0, x: -32, transition: { duration: 0.12 } }}
               className="flex flex-1 flex-col pt-4"
             >
               <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.35} onDragEnd={onSwipe} className="card-forge touch-pan-y overflow-hidden p-5">
@@ -393,8 +401,7 @@ export default function Workout() {
 
               <div className="sticky bottom-0 z-20 -mx-4 mt-auto bg-gradient-to-t from-bg via-bg/95 to-bg/0 px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-6">
                 <div className="relative" style={{ filter: 'drop-shadow(0 10px 28px rgb(var(--ember) / 0.35))' }}>
-                  <Shockwave trigger={shock} />
-                  <Sparks trigger={spark} />
+
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     transition={{ type: 'spring', stiffness: 600, damping: 20 }}
@@ -410,14 +417,15 @@ export default function Workout() {
             </motion.section>
           ) : null}
         </AnimatePresence>
-        {/* Rest view también muestra la serie anterior cerrada; el shock sigue visible */}
-        {resting && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-24 grid place-items-center">
-            <div className="relative h-0 w-full">
-              <Sparks trigger={spark} />
-            </div>
-          </div>
-        )}
+      </div>
+
+      {/* Feedback de "serie hecha": capa fija sobre el botón, sobrevive al cambio a descanso */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[max(env(safe-area-inset-bottom),12px)] z-40 mx-auto h-[88px] max-w-xl px-4" aria-hidden>
+        <div className="relative h-full w-full">
+          <Shockwave trigger={shock} />
+          <Sparks trigger={spark} />
+          <SetCheck trigger={shock} warmup={lastKind === 'warmup'} />
+        </div>
       </div>
 
       <AnimatePresence>
@@ -585,10 +593,9 @@ function RestView({
   const warn = left <= 10;
   return (
     <motion.section
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } }}
+      exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.12 } }}
       className="flex flex-1 flex-col items-center pt-6"
     >
       <AnimatePresence>

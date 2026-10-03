@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Calculator, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { ToolsSheet } from '@/components/Calculators';

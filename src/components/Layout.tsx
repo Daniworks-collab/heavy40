@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { BookOpen, CalendarDays, Dumbbell, Flame, LayoutGrid, Rows3, Salad, ScrollText, Settings, TrendingUp } from 'lucide-react';
 import { Suspense, type ReactNode } from 'react';
 import { NavLink, useLocation, useOutlet } from 'react-router-dom';

@@ -1,4 +1,4 @@
-import { animate, useMotionValue, useReducedMotion, useTransform, motion } from 'framer-motion';
+import { animate, useMotionValue, useReducedMotion, useTransform, motion } from 'motion/react';
 import { useEffect } from 'react';
 
 /** Contador numérico animado. */

@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useDragControls, type PanInfo } from 'framer-motion';
+import { AnimatePresence, motion, useDragControls, type PanInfo } from 'motion/react';
 import { X } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -41,14 +41,14 @@ export function Sheet({ open, onClose, title, eyebrow, children, footer, wide }:
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={onClose}
           />
           <motion.div
             className={`glass relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border lg:rounded-3xl ${wide ? 'lg:max-w-3xl' : 'lg:max-w-lg'}`}
             initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+            animate={{ y: 0, transition: { duration: 0.26, ease: [0.16, 1, 0.3, 1] } }}
+            exit={{ y: '100%', transition: { duration: 0.18, ease: 'easeIn' } }}
             drag="y"
             dragListener={false}
             dragControls={controls}

@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'motion/react';
 import { Anvil, CalendarCheck, Crown, Flame, Layers, Lock, Sparkles, Timer, Trophy } from 'lucide-react';
 import { RANKS, type Medal, type RankState } from '@/lib/rank';
 import { int } from '@/lib/format';

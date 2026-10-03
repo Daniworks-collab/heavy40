@@ -1,4 +1,4 @@
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { AlertOctagon, ArrowLeft, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -128,7 +128,7 @@ function Detail({ ex, onClose }: { ex: Exercise; onClose: () => void }) {
       <motion.article
         layoutId={`ex-card-${ex.id}`}
         className="card relative max-h-[92dvh] w-full overflow-y-auto rounded-b-none bg-surface p-5 lg:max-w-3xl lg:rounded-2xl lg:p-8"
-        transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+        transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
       >
         <button onClick={onClose} className="mb-3 inline-flex min-h-[44px] items-center gap-2 text-sm text-muted hover:text-fg">
           <ArrowLeft size={16} /> Biblioteca

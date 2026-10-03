@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'motion/react';
 import { AlertTriangle, Info, OctagonAlert } from 'lucide-react';
 import { MUSCLES, MUSCLE_LABEL } from '@/data/labels';
 import { BAND_LABEL, fmtSets } from '@/engine/validate';

@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useMemo } from 'react';
 
 /** Onda de choque: anillos concéntricos que se expanden desde el centro del botón. */
@@ -14,15 +14,15 @@ export function Shockwave({ trigger }: { trigger: number }) {
               key={i}
               className="absolute aspect-square w-24 rounded-full border-2 border-ember"
               initial={{ scale: 0.4, opacity: 0.9 }}
-              animate={{ scale: 5, opacity: 0 }}
-              transition={{ duration: 0.75, delay: i * 0.09, ease: [0.16, 1, 0.3, 1] }}
+              animate={{ scale: 4.5, opacity: 0 }}
+              transition={{ duration: 0.28, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
             />
           ))}
           <motion.span
             className="absolute inset-0 rounded-[inherit] bg-ember-hot"
             initial={{ opacity: 0.55 }}
             animate={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
+            transition={{ duration: 0.2 }}
           />
         </span>
       )}

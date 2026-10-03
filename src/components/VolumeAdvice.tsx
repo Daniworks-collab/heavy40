@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { ArrowRight, Check, Lightbulb, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getExercise } from '@/data/exercises';

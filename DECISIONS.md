@@ -56,3 +56,16 @@ Decisiones no especificadas en el brief (o donde el brief deja margen), con el m
 | 38 | Racha, XP y medallas: **semana completa = todos los días del split**. | Coherencia con splits de 2 a 7 días. |
 | 39 | Los nombres de los días del split HD se regeneran por músculos al editar; los de los demás splits los conserva el usuario. | Compatibilidad con el comportamiento previo. |
 | 40 | Migración v3 del almacenamiento: la rutina existente se convierte en el split "Heavy Duty 3 días". | No perder la rutina del usuario. |
+
+## Fase 2 y 3 (diseño y animación)
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| 41 | Paleta Forja en **gris oscuro** (#121215) en lugar de casi negro; bordes de control en `line2` ≥3:1; verificador `npm run contrast`. | Pedido (no negro puro) y WCAG 1.4.3 / 1.4.11. |
+| 42 | HOY con **divulgación progresiva**: lo esencial visible, el resto en secciones colapsables. | Pedido; escaneable en menos de 2 s. |
+| 43 | **Glass** sólo en navegación y modales, con 78 % de opacidad (sólido en Alto contraste). | Pedido, sin sacrificar contraste. |
+| 44 | Migración de `framer-motion` a **`motion`** (`motion/react`): misma API, bundle 130 → 109 KB. | Pedido y aprobado. |
+| 45 | Efectos tipo Magic UI / React Bits (border beam, text reveal, tilt) **escritos a mano** en `components/Motion.tsx` y CSS, sin instalar shadcn. | Evitar que el CLI de shadcn reescriba Tailwind y estilos; aprobado. |
+| 46 | **Sin Lottie**: los íconos animados se hacen con SVG + motion/CSS. | Peso de la librería y falta de archivos de animación; aprobado. |
+| 47 | Interacción < 300 ms (tokens en `lib/motion.ts`); celebraciones y revelado de datos pueden durar más porque no bloquean nada. El registro de una serie ocurre antes de cualquier animación. | Regla del brief: la velocidad importa más que el adorno. |
+| 48 | El feedback de "serie hecha" (onda, chispas, check) vive en una capa fija para no desmontarse al pasar a descanso. | Que la animación se vea completa sin retrasar el flujo. |

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Check, Flame, History, Pause, Play, Target } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DayGoal, LoggedSet, WarmupStep } from '@/engine/progression';

@@ -232,6 +232,19 @@
   [data-theme='alto'] .glass {
     background-color: rgb(var(--surface));
   }
+  /* Haz de luz que recorre el borde (tipo "border beam"). Elemento superpuesto, sólo decorativo. */
+  .beam {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(from var(--beam-angle), transparent 0deg, transparent 290deg, rgb(var(--ember) / 0.9) 335deg, rgb(var(--ember-hot)) 350deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: beam 7s linear infinite;
+    pointer-events: none;
+  }
   .tick-rule {
     background-image: repeating-linear-gradient(90deg, rgb(var(--line2)) 0 1px, transparent 1px 8px);
   }
@@ -249,7 +262,21 @@
   }
 }
 
+@property --beam-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes beam {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .beam {
+    display: none;
+  }
   *,
   *::before,
   *::after {

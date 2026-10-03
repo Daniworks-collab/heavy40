@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { BedDouble, Droplets, Minus, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { NumberTicker } from '@/components/ui/NumberTicker';
