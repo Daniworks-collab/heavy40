@@ -24,8 +24,8 @@ import { useSessions } from '@/hooks/useSessions';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { anvil, beep, vibrate } from '@/lib/feedback';
 import { kg as fmtKg, int, mmss } from '@/lib/format';
-import { rankFor, totalXp } from '@/lib/rank';
-import { RankBadge } from '@/components/Rank';
+import { medals, newlyUnlocked, rankFor, totalXp } from '@/lib/rank';
+import { MedalGrid, RankBadge } from '@/components/Rank';
 import { useApp, withDefaults } from '@/store/app';
 import { useLive, type LiveItem, type LiveTask } from '@/store/live';
 
@@ -712,21 +712,35 @@ function Summary({ onExit }: { onExit: () => void }) {
   // ───── XP y rango ─────
   const perWeek = useApp((s) => s.routine.days.length);
   const xpBefore = useMemo(() => totalXp(sessions ?? [], perWeek), [sessions, perWeek]);
-  const xpAfter = useMemo(() => {
-    const fake = { date: new Date(live.startedAt).toISOString(), sets: work, prs, durationSec: duration, budgetSec: budget } as unknown as SessionRecord;
-    return totalXp([...(sessions ?? []), fake], perWeek);
+  const fake = useMemo(
+    () => ({ date: new Date(live.startedAt).toISOString(), sets: work, prs, durationSec: duration, budgetSec: budget, muscles }) as unknown as SessionRecord,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, prs, duration]);
+    [prs, duration]
+  );
+  const xpAfter = useMemo(() => totalXp([...(sessions ?? []), fake], perWeek), [sessions, fake, perWeek]);
   const before = rankFor(xpBefore);
   const after = rankFor(xpAfter);
   const rankUp = after.index > before.index;
+  // Insignias que esta sesión desbloquea
+  const unlocked = useMemo(
+    () => (sessions ? newlyUnlocked(medals(sessions, perWeek), medals([...sessions, fake], perWeek)) : []),
+    [sessions, fake, perWeek]
+  );
+  const settingsS = withDefaults(useApp((s) => s.settings));
+  const celebrated = useRef(false);
 
   useEffect(() => {
-    if (prs.length || rankUp) {
-      const t = setTimeout(() => setSpark(1), 700);
+    if (!sessions || celebrated.current) return;
+    if (prs.length || rankUp || unlocked.length) {
+      celebrated.current = true;
+      const t = setTimeout(() => {
+        setSpark(1);
+        celebrate(unlocked.length || rankUp ? 'medal' : 'pr', { sound: settingsS.sound, vibration: settingsS.vibration });
+      }, 600);
       return () => clearTimeout(t);
     }
-  }, [prs.length, rankUp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, prs.length, rankUp, unlocked.length]);
 
   const save = async () => {
     if (saved) return;
@@ -814,6 +828,15 @@ function Summary({ onExit }: { onExit: () => void }) {
           </div>
         </div>
       </motion.div>
+
+      {unlocked.length > 0 && (
+        <motion.div variants={rise} className="card relative mt-4 overflow-hidden border-ember/60 p-5">
+          <div className="eyebrow mb-3 flex items-center gap-2 text-ember">
+            <Trophy size={14} /> {unlocked.length === 1 ? 'Insignia desbloqueada' : 'Insignias desbloqueadas'}
+          </div>
+          <MedalGrid list={unlocked} />
+        </motion.div>
+      )}
 
       {prs.length > 0 && (
         <motion.div variants={rise} className="card relative mt-4 overflow-hidden border-ember/50 p-5">

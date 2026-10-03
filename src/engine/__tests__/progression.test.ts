@@ -93,3 +93,16 @@ describe('readiness', () => {
     expect(evaluateReadiness({ sleep: 5, energy: 5, pain: 5 }).swapAdvice).toBe(true);
   });
 });
+
+describe('récords de repeticiones', () => {
+  it('más reps con el mismo peso es récord', () => {
+    const hist = [sess('2026-01-01', bench.id, 60, [8])];
+    const prs = detectPRs(bench, sess('2026-01-05', bench.id, 60, [10]).sets, hist);
+    expect(prs.map((p) => p.kind)).toContain('reps');
+  });
+  it('menos peso con más reps no es récord de reps', () => {
+    const hist = [sess('2026-01-01', bench.id, 60, [8])];
+    const prs = detectPRs(bench, sess('2026-01-05', bench.id, 50, [9]).sets, hist);
+    expect(prs.map((p) => p.kind)).not.toContain('reps');
+  });
+});
