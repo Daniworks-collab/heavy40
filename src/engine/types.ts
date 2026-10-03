@@ -72,7 +72,18 @@ export interface Exercise {
   hinge?: boolean;
 }
 
-export type Mode = 'puro' | 'adaptado' | 'fast40';
+/** Estilo de entrenamiento: decide CÓMO (series, reps, esfuerzo). El split decide QUÉ días y ejercicios. */
+export type Mode = 'puro' | 'adaptado' | 'fast40' | 'clasico' | 'custom';
+
+/** Estilo personalizado: el usuario fija las reglas. */
+export interface CustomStyle {
+  sets: number;
+  reps: [number, number];
+  effort: Effort;
+  restCompound: number;
+  restIsolation: number;
+  warmups: boolean;
+}
 
 export type Effort = 'fallo' | '1 RIR' | '2 RIR' | '3 RIR';
 
@@ -224,6 +235,12 @@ export interface EngineConfig {
   tempo?: string;
   /** Rango global de reps que reemplaza el de cada clase (salvo gemelos/core). */
   repRange?: [number, number] | null;
+  /** Reglas del estilo personalizado (mode = 'custom'). */
+  custom?: CustomStyle;
+  /** Regla de recuperación del split: entre sesiones (Heavy Duty) o por músculo. */
+  restRule?: 'sesion' | 'musculo';
+  /** El split espera ejercicios distintos cada día (Heavy Duty). */
+  distinctDays?: boolean;
   fatigueLimit: number; // 24
   restOverrides?: Partial<Record<ExerciseClass, number>>;
   /** Readiness bajo → modo conservador. */

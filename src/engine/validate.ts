@@ -70,6 +70,31 @@ export function spacingWarnings(weekdays: number[]): Warning[] {
   return out;
 }
 
+/** Recuperación por músculo: avisa si un músculo se entrena directo en días seguidos (<48 h). */
+export function muscleSpacingWarnings(days: PrescribedDay[]): Warning[] {
+  const out: Warning[] = [];
+  const watch: Muscle[] = ['pecho', 'espalda', 'hombros', 'cuadriceps', 'femorales', 'gluteos', 'biceps', 'triceps'];
+  for (const m of watch) {
+    const wds = [...new Set(days.filter((d) => d.items.some((i) => i.exercise.primary === m)).map((d) => d.day.weekday))].sort((a, b) => a - b);
+    if (wds.length < 2) continue;
+    for (let i = 0; i < wds.length; i++) {
+      const a = wds[i];
+      const b = wds[(i + 1) % wds.length];
+      if (a === b) continue;
+      const gap = (b - a + 7) % 7;
+      if (gap === 1) {
+        out.push({
+          kind: 'espaciado',
+          severity: 'aviso',
+          text: `${MUSCLE_LABEL[m]}: ${WEEKDAY_LONG[a]} y ${WEEKDAY_LONG[b]} seguidos, menos de 48 h para recuperarse.`
+        });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 export function validatePlan(days: PrescribedDay[], config: EngineConfig): { weekly: MuscleVolume[]; coverage: Record<Muscle, number[]>; warnings: Warning[] } {
   const warnings: Warning[] = [];
   const weekly = weeklyVolume(days);
@@ -96,7 +121,7 @@ export function validatePlan(days: PrescribedDay[], config: EngineConfig): { wee
       warnings.push({
         kind: 'cobertura',
         severity: 'aviso',
-        text: `${MUSCLE_LABEL[m]} recibe ${exp.toString()} exposiciones por semana (meta ≥2).`
+        text: `${MUSCLE_LABEL[m]} recibe ${exp.toString()} ${exp === 1 ? 'exposición' : 'exposiciones'} por semana (meta ≥2).`
       });
     }
   }
@@ -144,19 +169,28 @@ export function validatePlan(days: PrescribedDay[], config: EngineConfig): { wee
     }
   }
 
-  // Días con ejercicios distintos
+  // Días con ejercicios distintos (sólo si el split lo pide, p. ej. Heavy Duty)
   const seen = new Map<string, string>();
+  if (config.distinctDays !== false)
   for (const d of days) {
     for (const it of d.items) {
       const prev = seen.get(it.exercise.id);
       if (prev && prev !== d.day.id) {
-        warnings.push({ kind: 'redundancia', severity: 'aviso', text: `${it.exercise.name} aparece en más de un día. Los 3 días deben ser distintos.` });
+        warnings.push({ kind: 'redundancia', severity: 'aviso', text: `${it.exercise.name} aparece en más de un día. En este split cada día lleva ejercicios distintos.` });
       }
       seen.set(it.exercise.id, d.day.id);
     }
   }
 
-  warnings.push(...spacingWarnings(days.map((d) => d.day.weekday)));
+  const weekdays = days.map((d) => d.day.weekday);
+  if (config.restRule === 'musculo') {
+    if (new Set(weekdays).size !== weekdays.length) {
+      warnings.push({ kind: 'espaciado', severity: 'critico', text: 'Dos días del split caen el mismo día de la semana.' });
+    }
+    warnings.push(...muscleSpacingWarnings(days));
+  } else {
+    warnings.push(...spacingWarnings(weekdays));
+  }
   return { weekly, coverage, warnings };
 }
 

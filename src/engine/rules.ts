@@ -1,4 +1,4 @@
-import type { Effort, EngineConfig, Exercise, ExerciseClass, Mode, Muscle, Technique, WarmupSet } from './types';
+import type { CustomStyle, Effort, EngineConfig, Exercise, ExerciseClass, Mode, Muscle, Technique, WarmupSet } from './types';
 
 export const LOWER_BODY: Muscle[] = ['cuadriceps', 'femorales', 'gluteos', 'gemelos'];
 export const BIG: Muscle[] = ['pecho', 'espalda', 'cuadriceps', 'femorales', 'hombros'];
@@ -11,6 +11,35 @@ export const ANTAGONISTS: [Muscle, Muscle][] = [
 ];
 
 export const DEFAULT_REST: Record<ExerciseClass, number> = { C1: 150, C2: 120, A: 75, P: 60 };
+/** Hipertrofia clásica: descansos más cortos. */
+export const CLASSIC_REST: Record<ExerciseClass, number> = { C1: 120, C2: 90, A: 60, P: 45 };
+
+export const DEFAULT_CUSTOM: CustomStyle = { sets: 3, reps: [8, 12], effort: '1 RIR', restCompound: 120, restIsolation: 75, warmups: true };
+
+const isCompound = (ex: Exercise) => ex.cls === 'C1' || ex.cls === 'C2';
+
+/** Política de series por estilo: base, máximo por ejercicio, tope por músculo y si rellena. */
+export interface SetPolicy {
+  base: (ex: Exercise) => number;
+  max: (exercisesInDay: number) => number;
+  muscleCap: number;
+  fill: boolean;
+}
+
+export function setPolicy(mode: Mode, custom?: CustomStyle): SetPolicy {
+  switch (mode) {
+    case 'puro':
+      return { base: () => 1, max: () => 1, muscleCap: 4, fill: false };
+    case 'clasico':
+      return { base: (ex) => (ex.cls === 'P' ? 2 : 3), max: () => 4, muscleCap: 10, fill: true };
+    case 'custom': {
+      const n = Math.max(1, Math.min(8, custom?.sets ?? DEFAULT_CUSTOM.sets));
+      return { base: () => n, max: () => n, muscleCap: 99, fill: false };
+    }
+    default:
+      return { base: () => 1, max: (n) => (n <= 4 ? 3 : 2), muscleCap: 4, fill: true };
+  }
+}
 
 export const TEMPO = '2-0-4';
 
@@ -25,8 +54,8 @@ export interface ClassRule {
 }
 
 /** Reglas por clase y modo. HD Adaptado es la referencia (sección 5 del brief). */
-export function classRule(ex: Exercise, mode: Mode, cfg?: Pick<EngineConfig, 'restOverrides' | 'repRange'>): ClassRule {
-  const restBase = cfg?.restOverrides?.[ex.cls] ?? DEFAULT_REST[ex.cls];
+export function classRule(ex: Exercise, mode: Mode, cfg?: Pick<EngineConfig, 'restOverrides' | 'repRange' | 'custom'>): ClassRule {
+  const restBase = cfg?.restOverrides?.[ex.cls] ?? (mode === 'clasico' ? CLASSIC_REST : DEFAULT_REST)[ex.cls];
   let reps: [number, number];
   let effort: Effort;
   switch (ex.cls) {
@@ -52,6 +81,19 @@ export function classRule(ex: Exercise, mode: Mode, cfg?: Pick<EngineConfig, 're
     // Mentzer: todo al fallo, 6-10. Gemelos/core conservan su rango alto.
     if (ex.cls !== 'P') reps = [6, 10];
     effort = 'fallo';
+  }
+  if (mode === 'clasico') {
+    // Hipertrofia clásica: 8-12 (aislamientos 10-15), 1-2 reps en reserva.
+    if (ex.cls === 'A') reps = [10, 15];
+    else if (ex.cls !== 'P') reps = [8, 12];
+    effort = isCompound(ex) ? '2 RIR' : '1 RIR';
+  }
+  if (mode === 'custom') {
+    const c = cfg?.custom ?? DEFAULT_CUSTOM;
+    if (ex.cls !== 'P') reps = [c.reps[0], c.reps[1]];
+    effort = c.effort;
+    const rest = cfg?.restOverrides?.[ex.cls] ?? (isCompound(ex) ? c.restCompound : c.restIsolation);
+    return { reps, effort, rest };
   }
   // Rango global del usuario (Ajustes). Gemelos y core conservan su rango alto.
   if (cfg?.repRange && ex.cls !== 'P') reps = [cfg.repRange[0], cfg.repRange[1]];
@@ -101,6 +143,7 @@ export function techniqueFor(
 ): { technique?: Technique; mini?: number } {
   if (opts.preExhaust) return { technique: 'pre-agotamiento' };
   if (opts.conservative) return {};
+  if (mode === 'clasico' || mode === 'custom') return {};
   if (!ex.safeFailure) return {};
   if (mode === 'puro') {
     if (ex.cls === 'A') return { technique: 'rest-pause', mini: 2 };

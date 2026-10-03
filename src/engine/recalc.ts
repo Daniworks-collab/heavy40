@@ -170,7 +170,7 @@ export function explainPlanChange(prev: PlanResult, next: PlanResult, profile: P
   if (prev.mode !== next.mode) {
     const sets = (p: PlanResult) => p.days.reduce((a, d) => a + d.items.reduce((b, i) => b + i.workSets, 0), 0);
     out.push(
-      `Modo ${MODE_LABEL[next.mode]}: ${sets(next)} series efectivas/semana (antes ${sets(prev)}); ` +
+      `Estilo ${MODE_LABEL[next.mode]}: ${sets(next)} series efectivas/semana (antes ${sets(prev)}); ` +
         next.days.map((d) => `${Math.round(d.seconds / 60)} min`).join(' · ') +
         '.'
     );

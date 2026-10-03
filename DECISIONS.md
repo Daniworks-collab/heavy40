@@ -40,3 +40,19 @@ Decisiones no especificadas en el brief (o donde el brief deja margen), con el m
 | 27 | **Datos de ejemplo** (6 semanas) disponibles en Progreso/Ajustes. | Explorar gráficas sin entrenar semanas. |
 | 28 | Unidades fijas en kg. | El brief pide kg. |
 | 29 | Iconos Lucide; logotipo y mapa muscular en SVG propio (figura facetada, "forjada"). | Brief. |
+
+## Fase 1 y 1.5 (mejoras)
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| 30 | **Tiempo disponible configurable** (15-120 min) en Ajustes y por sesión en el readiness; el motor usa `budget` y `target = budget − 2 min`. | Petición del usuario: no todos tienen 40 min. |
+| 31 | **Cadencia por defecto 2-0-4** (6 s/rep) y configurable; el modelo de tiempo usa `secPerRep` de la cadencia. | Pedido explícito; las plantillas siguen cabiendo en 36-40 min. |
+| 32 | **Rango de reps global** opcional que reemplaza el de clase, salvo gemelos y core. | Pedido (6-10 configurable) sin romper los rangos altos de músculos pequeños. |
+| 33 | Si el usuario configura su **incremento de carga**, se aplica tal cual (sin el tope automático de 5 %). Mancuernas: ~40 % por mancuerna, mínimo 1 kg. | Respetar la configuración explícita. |
+| 34 | **Split ≠ estilo.** El split decide qué días y ejercicios; el estilo decide series, reps, esfuerzo y descansos. Cualquier split funciona con cualquier estilo. | Que la app sirva más allá de Heavy Duty sin duplicar lógica. |
+| 35 | Estilos nuevos: **Hipertrofia clásica** (3 series base hasta 4, 8-12 / aislamientos 10-15, 1-2 RIR, descansos 45-120 s, tope 10 series/músculo/sesión) y **Personalizado** (series, reps, esfuerzo, descansos y calentamientos fijados por el usuario; no rellena). | Pedido del usuario. |
+| 36 | 9 **splits prearmados** + **split personalizado** (nombre, 1-7 días con nombre y día de la semana). Se guardan varios splits y se cambia entre ellos; `routine` es siempre la del split activo. | Pedido del usuario. |
+| 37 | **Recuperación según el split**: Heavy Duty mantiene ≥48 h entre sesiones; los demás avisan por **músculo** (mismo músculo en días seguidos). La regla de "ejercicios distintos cada día" sólo aplica a Heavy Duty. | Un PPL 6 días entrena días seguidos sin problema. |
+| 38 | Racha, XP y medallas: **semana completa = todos los días del split**. | Coherencia con splits de 2 a 7 días. |
+| 39 | Los nombres de los días del split HD se regeneran por músculos al editar; los de los demás splits los conserva el usuario. | Compatibilidad con el comportamiento previo. |
+| 40 | Migración v3 del almacenamiento: la rutina existente se convierte en el split "Heavy Duty 3 días". | No perder la rutina del usuario. |

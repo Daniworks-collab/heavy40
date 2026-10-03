@@ -1,6 +1,6 @@
 # HEAVY·40
 
-PWA mobile-first para hipertrofia **Heavy Duty** (Mentzer / Yates) en sesiones de **máximo 40 minutos**, **3 días por semana**. Español (México), kg, 100 % local y offline.
+PWA mobile-first de hipertrofia. Nació para **Heavy Duty** (Mentzer / Yates) en sesiones de 40 minutos y 3 días, y ahora admite **cualquier split** (9 prearmados o uno personalizado con nombre propio), **5 estilos** de entrenamiento (HD Puro, HD Adaptado, Fast-40, Hipertrofia clásica y Personalizado) y el **tiempo por sesión** que tengas. Español (México), kg, 100 % local y offline.
 
 ## Cómo correr
 
@@ -24,7 +24,7 @@ Cada persona guarda sus datos sólo en su propio dispositivo; no hay servidor ni
 
 ```
 src/
-├── data/            exercises.ts (77 ejercicios), templates.ts (plantilla por defecto), labels.ts
+├── data/            exercises.ts (77 ejercicios), templates.ts (plantilla HD), splits.ts (splits prearmados y personalizados), labels.ts
 ├── engine/          motor puro en TypeScript, sin UI
 │   ├── rules.ts         reglas por clase y modo, calentamientos, técnicas, prioridad
 │   ├── time.ts          modelo de tiempo y timeline de la sesión

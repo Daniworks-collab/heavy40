@@ -16,7 +16,7 @@ import { useSessions } from '@/hooks/useSessions';
 import { addDays, isoDate, parseIso, shortDate, startOfWeek } from '@/lib/dates';
 import { seedDemo } from '@/lib/demo';
 import { kg as fmtKg, mmss } from '@/lib/format';
-import { useApp, useBudget, usePlan } from '@/store/app';
+import { useApp, useBudget, usePerWeek, usePlan } from '@/store/app';
 import { medals, rankFor, totalXp } from '@/lib/rank';
 import { MedalGrid, RankCard } from '@/components/Rank';
 
@@ -25,6 +25,7 @@ export default function Progress() {
   const body = useDexie(() => db.body.orderBy('date').toArray(), []);
   const plan = usePlan();
   const budget = useBudget();
+  const perWeek = usePerWeek();
   const loads = useApp((s) => s.loads);
   const [exId, setExId] = useState<string | null>(null);
   const [muscle, setMuscle] = useState<Muscle>('pecho');
@@ -87,8 +88,8 @@ export default function Progress() {
   }
 
   const totalVol = sessions.reduce((a, s) => a + s.volumeKg, 0);
-  const rank = rankFor(totalXp(sessions));
-  const medalList = medals(sessions);
+  const rank = rankFor(totalXp(sessions, perWeek));
+  const medalList = medals(sessions, perWeek);
   const avgDur = sessions.length ? sessions.reduce((a, s) => a + s.durationSec, 0) / sessions.length : 0;
   const stalled = suggestions.filter((s) => s.stalled);
   const isSmall = SMALL.includes(muscle);

@@ -4,13 +4,13 @@ import { computePlan } from '@/engine/recalc';
 import { calibrationLoad, detectPRs, roundLoad, type ExerciseSession } from '@/engine/progression';
 import { isLower } from '@/engine/rules';
 import type { Muscle } from '@/engine/types';
-import { engineConfig, useApp } from '@/store/app';
+import { stateConfig, useApp } from '@/store/app';
 import { addDays, isoDate, startOfWeek } from './dates';
 
 /** Genera ~6 semanas de historial plausible para explorar la app. */
 export async function seedDemo() {
   const s = useApp.getState();
-  const plan = computePlan(s.routine, s.profile, engineConfig(s.settings));
+  const plan = computePlan(s.routine, s.profile, stateConfig(s));
   const start = addDays(startOfWeek(new Date()), -42);
   const base: Record<string, number> = {};
   const records: SessionRecord[] = [];

@@ -34,7 +34,7 @@ export function sessionXp(s: Pick<SessionRecord, 'sets' | 'prs' | 'durationSec' 
   return work * XP.workSet + s.prs.length * XP.pr + (s.durationSec > 0 && s.durationSec <= (s.budgetSec ?? 2400) ? XP.under40 : 0);
 }
 
-export function totalXp(sessions: SessionRecord[]): number {
+export function totalXp(sessions: SessionRecord[], perWeek = 3): number {
   const byWeek = new Map<string, number>();
   let xp = 0;
   for (const s of sessions) {
@@ -42,7 +42,7 @@ export function totalXp(sessions: SessionRecord[]): number {
     const k = weekKey(parseIso(s.date.slice(0, 10)));
     byWeek.set(k, (byWeek.get(k) ?? 0) + 1);
   }
-  for (const n of byWeek.values()) if (n >= 3) xp += XP.fullWeek;
+  for (const n of byWeek.values()) if (n >= perWeek) xp += XP.fullWeek;
   return xp;
 }
 
@@ -77,7 +77,7 @@ export interface Medal {
   unlocked: boolean;
 }
 
-export function medals(sessions: SessionRecord[]): Medal[] {
+export function medals(sessions: SessionRecord[], perWeek = 3): Medal[] {
   const work = sessions.reduce((a, s) => a + s.sets.filter((x) => x.kind === 'work').length, 0);
   const prs = sessions.reduce((a, s) => a + s.prs.length, 0);
   const under = sessions.filter((s) => s.durationSec > 0 && s.durationSec <= (s.budgetSec ?? 2400)).length;
@@ -86,8 +86,8 @@ export function medals(sessions: SessionRecord[]): Medal[] {
     const k = weekKey(parseIso(s.date.slice(0, 10)));
     byWeek.set(k, (byWeek.get(k) ?? 0) + 1);
   }
-  const fullWeeks = [...byWeek.values()].filter((n) => n >= 3).length;
-  const streak = Math.max(streakWeeks(sessions).weeks, longestStreak(byWeek));
+  const fullWeeks = [...byWeek.values()].filter((n) => n >= perWeek).length;
+  const streak = Math.max(streakWeeks(sessions, new Date(), perWeek).weeks, longestStreak(byWeek, perWeek));
   const m = (id: string, name: string, desc: string, icon: Medal['icon'], current: number, goal: number): Medal => ({
     id,
     name,
@@ -99,7 +99,7 @@ export function medals(sessions: SessionRecord[]): Medal[] {
   });
   return [
     m('chispa', 'Primera chispa', 'Completa tu primera sesión', 'spark', sessions.length, 1),
-    m('semana', 'Semana completa', '3 sesiones en una misma semana', 'calendar', fullWeeks, 1),
+    m('semana', 'Semana completa', 'Todos los días de tu split en una semana', 'calendar', fullWeeks, 1),
     m('racha4', 'Racha de hierro', '4 semanas seguidas completas', 'flame', streak, 4),
     m('disciplina', 'Disciplina', '10 sesiones dentro de tu tiempo', 'timer', under, 10),
     m('centurion', 'Centurión', '100 series efectivas', 'layers', work, 100),
@@ -109,9 +109,9 @@ export function medals(sessions: SessionRecord[]): Medal[] {
   ];
 }
 
-function longestStreak(byWeek: Map<string, number>): number {
+function longestStreak(byWeek: Map<string, number>, perWeek: number): number {
   const weeks = [...byWeek.entries()]
-    .filter(([, n]) => n >= 3)
+    .filter(([, n]) => n >= perWeek)
     .map(([k]) => parseIso(k).getTime())
     .sort((a, b) => a - b);
   let best = 0;

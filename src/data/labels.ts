@@ -59,13 +59,19 @@ export const LEVEL_LABEL: Record<Level, string> = {
 export const MODE_LABEL: Record<Mode, string> = {
   puro: 'HD Puro',
   adaptado: 'HD Adaptado',
-  fast40: 'Fast-40'
+  fast40: 'Fast-40',
+  clasico: 'Hipertrofia clásica',
+  custom: 'Personalizado'
 };
+
+export const MODES: Mode[] = ['adaptado', 'puro', 'fast40', 'clasico', 'custom'];
 
 export const MODE_BLURB: Record<Mode, string> = {
   puro: '1 serie efectiva por ejercicio, siempre al fallo, 6-10 reps. Máxima fidelidad a Mentzer.',
   adaptado: 'Intensidad alta y poco volumen, con ~2 series en ejercicios clave y 2×/semana por músculo. Fallo sólo donde es seguro.',
-  fast40: 'Pares antagonistas para meter más series en tu tiempo. Una concesión al purismo HD.'
+  fast40: 'Pares antagonistas para meter más series en tu tiempo. Una concesión al purismo HD.',
+  clasico: '3-4 series por ejercicio, 8-12 reps (aislamientos 10-15), 1-2 reps en reserva y descansos de 45-120 s. Volumen moderado-alto.',
+  custom: 'Tú decides: series por ejercicio, rango de reps, esfuerzo, descansos y si hay calentamientos.'
 };
 
 export const PATTERN_LABEL: Record<Pattern, string> = {

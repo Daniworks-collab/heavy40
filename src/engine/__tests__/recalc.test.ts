@@ -78,7 +78,7 @@ describe('recálculo al cambiar ejercicios', () => {
     const p1 = computePlan(routine(), profile(), cfg('puro'));
     const lines = explainPlanChange(p0, p1, profile(), cfg('puro'));
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatch(/^Modo HD Puro/);
+    expect(lines[0]).toMatch(/^Estilo HD Puro/);
   });
 
   it('series fijadas por el usuario se respetan y, si desbordan, Optimizar las libera', () => {

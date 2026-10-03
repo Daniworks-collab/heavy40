@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, CalendarDays, Dumbbell, Flame, LayoutGrid, Salad, ScrollText, Settings, TrendingUp } from 'lucide-react';
+import { BookOpen, CalendarDays, Dumbbell, Flame, LayoutGrid, Rows3, Salad, ScrollText, Settings, TrendingUp } from 'lucide-react';
 import { Suspense, type ReactNode } from 'react';
 import { NavLink, useLocation, useOutlet } from 'react-router-dom';
 import { Logo } from './ui/Logo';
@@ -13,6 +13,7 @@ const MAIN = [
   { to: '/biblioteca', label: 'Biblioteca', icon: BookOpen }
 ];
 const MORE = [
+  { to: '/splits', label: 'Splits', icon: Rows3 },
   { to: '/calendario', label: 'Recuperación', icon: CalendarDays },
   { to: '/metodo', label: 'Método', icon: ScrollText },
   { to: '/nutricion', label: 'Nutrición', icon: Salad },

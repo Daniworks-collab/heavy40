@@ -6,8 +6,9 @@ import { Logo } from '@/components/ui/Logo';
 import { Ring } from '@/components/ui/Ring';
 import { Stepper } from '@/components/ui/Stepper';
 import { getExercise } from '@/data/exercises';
-import { EQUIPMENT, EQUIPMENT_LABEL, JOINTS, JOINT_LABEL, LEVEL_LABEL, MODE_BLURB, MODE_LABEL, MUSCLES, MUSCLE_LABEL, WEEKDAY_SHORT } from '@/data/labels';
-import { defaultRoutine, FULL_GYM } from '@/data/templates';
+import { EQUIPMENT, EQUIPMENT_LABEL, JOINTS, JOINT_LABEL, LEVEL_LABEL, MODES, MODE_BLURB, MODE_LABEL, MUSCLES, MUSCLE_LABEL, WEEKDAY_SHORT } from '@/data/labels';
+import { PRESET_BY_ID, SPLIT_PRESETS, customSplit, splitFromPreset, spreadWeekdays, type Split } from '@/data/splits';
+import { FULL_GYM } from '@/data/templates';
 import { calibrationLoad } from '@/engine/progression';
 import { computePlan } from '@/engine/recalc';
 import { spacingWarnings } from '@/engine/validate';
@@ -39,7 +40,9 @@ export function Onboarding() {
   const [ack, setAck] = useState(false);
   const [level, setLevel] = useState<Level>('intermedio');
   const [bw, setBw] = useState(78);
-  const [days, setDays] = useState([1, 3, 5]);
+  const [choice, setChoice] = useState<string>('hd3');
+  const [wds, setWds] = useState<number[]>([1, 3, 5]);
+  const [customName, setCustomName] = useState('');
   const [equipment, setEquipment] = useState<Equipment[]>(FULL_GYM);
   const [injuries, setInjuries] = useState<Joint[]>([]);
   const [priorities, setPriorities] = useState<Muscle[]>([]);
@@ -48,7 +51,27 @@ export function Onboarding() {
   const [calib, setCalib] = useState<Record<string, { kg: number; reps: number }>>({});
 
   const profile: Profile = { level, bodyweight: bw, equipment, injuries, priorities };
-  const plan = useMemo(() => computePlan(defaultRoutine(days), profile, engineConfig({ ...DEFAULT_SETTINGS, mode, sessionMinutes: minutesAvail })), [days, level, bw, equipment, injuries, priorities, mode, minutesAvail]); // eslint-disable-line react-hooks/exhaustive-deps
+  const buildSplit = (): Split =>
+    choice === 'custom'
+      ? customSplit(customName || 'Mi split', wds.map((weekday) => ({ name: '', weekday })))
+      : splitFromPreset(PRESET_BY_ID[choice], wds);
+  const preview = useMemo(buildSplit, [choice, wds, customName]); // eslint-disable-line react-hooks/exhaustive-deps
+  const plan = useMemo(
+    () =>
+      computePlan(
+        preview.routine,
+        profile,
+        engineConfig({ ...DEFAULT_SETTINGS, mode, sessionMinutes: minutesAvail }, { restRule: preview.restRule, distinctDays: preview.distinctDays })
+      ),
+    [preview, level, bw, equipment, injuries, priorities, mode, minutesAvail] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const pickSplit = (id: string, n?: number) => {
+    setChoice(id);
+    const days = id === 'custom' ? n ?? wds.length : PRESET_BY_ID[id].days;
+    setWds(spreadWeekdays(days));
+    if (id !== 'custom') setMode(PRESET_BY_ID[id].suggestedMode);
+  };
+  const dupDays = new Set(wds).size !== wds.length;
 
   const STEPS = 9;
   const go = (d: 1 | -1) => {
@@ -60,17 +83,8 @@ export function Onboarding() {
   const finish = () => {
     const loads: Record<string, number> = {};
     for (const [id, v] of Object.entries(calib)) if (v.kg > 0 && v.reps > 0) loads[id] = calibrationLoad(getExercise(id), v.kg, v.reps).load;
-    complete({ profile, mode, weekdays: days, loads, sessionMinutes: minutesAvail });
+    complete({ profile, mode, weekdays: wds, loads, sessionMinutes: minutesAvail, split: buildSplit() });
     navigate('/', { replace: true });
-  };
-
-  const toggleDay = (wd: number) => {
-    if (days.includes(wd)) {
-      if (days.length > 1) setDays(days.filter((d) => d !== wd));
-      return;
-    }
-    if (days.length >= 3) return;
-    setDays([...days, wd].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)));
   };
 
   let body: ReactNode;
@@ -167,28 +181,79 @@ export function Onboarding() {
             </div>
             <p className="mt-1.5 text-xs text-muted">Heavy Duty funciona con sesiones cortas. Lo puedes cambiar en Ajustes o el día que entrenes.</p>
           </div>
-          <div className="mb-2 font-medium">Tus 3 días</div>
-          <p className="mb-4 text-sm text-muted">Nunca consecutivos: ≥48 h entre sesiones. Por defecto lunes, miércoles y viernes.</p>
-          <div className="grid grid-cols-7 gap-1.5">
-            {[1, 2, 3, 4, 5, 6, 0].map((wd) => (
+          <div className="mb-2 font-medium">Tu split</div>
+          <div className="grid gap-1.5" role="radiogroup" aria-label="Split">
+            {SPLIT_PRESETS.map((p) => (
               <button
-                key={wd}
-                onClick={() => toggleDay(wd)}
-                aria-pressed={days.includes(wd)}
-                className={`min-h-[64px] rounded-xl border font-medium ${days.includes(wd) ? 'border-ember bg-ember text-onember' : 'border-line text-muted'}`}
+                key={p.id}
+                role="radio"
+                aria-checked={choice === p.id}
+                onClick={() => pickSplit(p.id)}
+                className={`press flex min-h-[52px] items-center justify-between gap-3 rounded-md border px-4 text-left ${choice === p.id ? 'border-ember bg-ember/10' : 'border-line'}`}
               >
-                {WEEKDAY_SHORT[wd]}
+                <span className="font-medium">{p.name}</span>
+                <span className="num shrink-0 text-xs text-muted">{p.days} días</span>
               </button>
             ))}
+            <button
+              role="radio"
+              aria-checked={choice === 'custom'}
+              onClick={() => pickSplit('custom', 4)}
+              className={`press flex min-h-[52px] items-center justify-between gap-3 rounded-md border border-dashed px-4 text-left ${choice === 'custom' ? 'border-ember bg-ember/10' : 'border-line2'}`}
+            >
+              <span className="font-medium">Personalizado: lo armo yo</span>
+              <span className="text-xs text-muted">1-7 días</span>
+            </button>
           </div>
-          <p className="mt-3 text-sm">
-            <span className="num">{days.length}/3</span> seleccionados
-          </p>
-          {spacingWarnings(days).map((w) => (
-            <p key={w.text} className="mt-2 text-sm text-warn">
-              {w.text}
-            </p>
-          ))}
+          {choice === 'custom' && (
+            <div className="mt-4 space-y-3 rounded-md border border-line p-3">
+              <input className="field" placeholder="Nombre de tu split" maxLength={40} value={customName} onChange={(e) => setCustomName(e.target.value)} aria-label="Nombre de tu split" />
+              <div className="grid grid-cols-7 gap-1" role="radiogroup" aria-label="Días por semana">
+                {[1, 2, 3, 4, 5, 6, 7].map((k) => (
+                  <button
+                    key={k}
+                    role="radio"
+                    aria-checked={wds.length === k}
+                    onClick={() => setWds(spreadWeekdays(k))}
+                    className={`press num min-h-[44px] rounded-md border font-semibold ${wds.length === k ? 'border-ember bg-ember text-onember' : 'border-line text-muted'}`}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted">Nombras cada día y agregas sus ejercicios después, en Mi rutina.</p>
+            </div>
+          )}
+          <div className="mb-2 mt-5 font-medium">¿Qué días?</div>
+          <div className="space-y-2">
+            {wds.map((wd, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-24 shrink-0 truncate text-xs text-muted">
+                  {choice === 'custom' || choice === 'hd3' ? `Día ${i + 1}` : PRESET_BY_ID[choice].plan[i]?.name}
+                </span>
+                <div className="grid flex-1 grid-cols-7 gap-1">
+                  {[1, 2, 3, 4, 5, 6, 0].map((w) => (
+                    <button
+                      key={w}
+                      onClick={() => setWds(wds.map((x, j) => (j === i ? w : x)))}
+                      aria-pressed={wd === w}
+                      aria-label={`${WEEKDAY_SHORT[w]} para el día ${i + 1}`}
+                      className={`press min-h-[40px] rounded-sm border text-[11px] font-semibold ${wd === w ? 'border-ember bg-ember text-onember' : wds.includes(w) ? 'border-line text-muted/40' : 'border-line text-muted'}`}
+                    >
+                      {WEEKDAY_SHORT[w].slice(0, 2)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {dupDays && <p className="mt-2 text-sm text-warn">Dos días caen el mismo día de la semana.</p>}
+          {choice === 'hd3' &&
+            spacingWarnings(wds).map((w) => (
+              <p key={w.text} className="mt-2 text-sm text-warn">
+                {w.text}
+              </p>
+            ))}
         </Step>
       );
       break;
@@ -247,8 +312,14 @@ export function Onboarding() {
       body = (
         <Step eyebrow="Filosofía" title="Modo">
           <div className="grid gap-2">
-            {(['adaptado', 'puro', 'fast40'] as Mode[]).map((m) => (
-              <Choice key={m} on={mode === m} onClick={() => setMode(m)} title={`${MODE_LABEL[m]}${m === 'adaptado' ? ' · recomendado' : ''}`} sub={MODE_BLURB[m]} />
+            {MODES.map((m) => (
+              <Choice
+                key={m}
+                on={mode === m}
+                onClick={() => setMode(m)}
+                title={`${MODE_LABEL[m]}${choice !== 'custom' && PRESET_BY_ID[choice].suggestedMode === m ? ' · recomendado para tu split' : ''}`}
+                sub={m === 'custom' ? `${MODE_BLURB[m]} Lo ajustas en Mi rutina.` : MODE_BLURB[m]}
+              />
             ))}
           </div>
         </Step>
@@ -352,7 +423,7 @@ export function Onboarding() {
         )}
         <motion.button
           whileTap={{ scale: 0.97 }}
-          disabled={!canNext || (step === 3 && days.length !== 3)}
+          disabled={!canNext || (step === 3 && (dupDays || (choice === 'custom' && !customName.trim())))}
           onClick={() => (step === STEPS ? finish() : go(1))}
           className="btn-ember min-h-[60px] flex-[2] text-xl"
         >

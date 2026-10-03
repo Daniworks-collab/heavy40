@@ -20,7 +20,7 @@ import { useStartWorkout } from '@/hooks/useStartWorkout';
 import { addDays, isoDate, parseIso, shortDate, startOfWeek } from '@/lib/dates';
 import { mmss } from '@/lib/format';
 import { hoursSinceLast, nextSession, sessionOn, streakWeeks, weekdayOf, weeksSince } from '@/lib/schedule';
-import { isDeloadWeek, useApp, useBudget, usePlan } from '@/store/app';
+import { isDeloadWeek, useActiveSplit, useApp, useBudget, usePlan } from '@/store/app';
 import { rankFor, totalXp } from '@/lib/rank';
 import { RankChip } from '@/components/Rank';
 import { useLive } from '@/store/live';
@@ -64,14 +64,16 @@ export function Today() {
   const budget = useBudget();
   const sessionMinutes = Math.round(budget / 60);
   const scheduleDeload = useApp((s) => s.scheduleDeload);
-  const streak = streakWeeks(sessions ?? [], today);
+  const perWeek = routine.days.length;
+  const split = useActiveSplit();
+  const streak = streakWeeks(sessions ?? [], today, perWeek);
   // Estancamiento: ejercicios de la rutina sin mejorar su mejor e1RM en 3 sesiones
   const stalled = useMemo(() => {
     if (!sessions) return [] as string[];
     const ids = [...new Set(plan.days.flatMap((d) => d.items.filter((i) => i.priority >= 3).map((i) => i.exercise.id)))];
     return ids.filter((id) => isStalled(sessions.map((x) => ({ date: x.date, sets: x.sets.filter((y) => y.exerciseId === id) })).filter((h) => h.sets.length)));
   }, [sessions, plan]);
-  const rank = useMemo(() => rankFor(totalXp(sessions ?? [])), [sessions]);
+  const rank = useMemo(() => rankFor(totalXp(sessions ?? [], perWeek)), [sessions, perWeek]);
   const since = hoursSinceLast(sessions ?? [], today);
   const deloadNow = isDeloadWeek(deloads, today);
   const lastDeload = deloads.filter((d) => d.start <= isoDate(today)).at(-1)?.start ?? programStart;
@@ -185,9 +187,15 @@ export function Today() {
                 <Play size={20} fill="currentColor" /> Continuar sesión
               </Link>
             ) : (
-              <motion.button whileTap={{ scale: 0.97 }} className="btn-ember min-h-[64px] flex-1 text-2xl" onClick={() => setReadyOpen(true)}>
-                <Play size={20} fill="currentColor" /> Iniciar entrenamiento
-              </motion.button>
+              featured.items.length === 0 ? (
+                <Link to="/rutina" className="btn-ember min-h-[64px] flex-1 text-xl">
+                  Agregar ejercicios a este día
+                </Link>
+              ) : (
+                <motion.button whileTap={{ scale: 0.97 }} className="btn-ember min-h-[64px] flex-1 text-2xl" onClick={() => setReadyOpen(true)}>
+                  <Play size={20} fill="currentColor" /> Iniciar entrenamiento
+                </motion.button>
+              )
             )}
           </div>
           <div className="relative mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -203,9 +211,13 @@ export function Today() {
         {/* ───── Columna derecha ───── */}
         <div className="space-y-5">
           <Rise as="section" className="card p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="eyebrow">Semana</span>
-              <span className="chip !py-1">{MODE_LABEL[mode]}</span>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className="eyebrow shrink-0">
+                Semana · <span className="num text-fg">{streak.thisWeek}/{perWeek}</span>
+              </span>
+              <Link to="/splits" className="chip !py-1" aria-label="Cambiar split">
+                {split?.name ?? 'Split'} · {MODE_LABEL[mode]}
+              </Link>
             </div>
             <WeekStrip doneDates={doneDates} today={today} />
           </Rise>

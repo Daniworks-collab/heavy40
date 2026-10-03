@@ -74,7 +74,7 @@ export function RankCard({ state }: { state: RankState }) {
             <span key={r.id} className={`h-1.5 flex-1 ${i <= state.index ? 'bg-ember' : 'bg-line'}`} />
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted">Serie efectiva +10 · Récord +50 · Sesión dentro de tu tiempo +25 · Semana completa +100</p>
+        <p className="mt-3 text-xs text-muted">Serie efectiva +10 · Récord +50 · Sesión dentro de tu tiempo +25 · Semana completa del split +100</p>
       </div>
     </section>
   );

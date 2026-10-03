@@ -2,19 +2,20 @@ import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, 
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown, GripVertical, Lock, Plus, Replace, Sparkles, Trash2, Wand2, X } from 'lucide-react';
+import { ArrowDown, ChevronRight, GripVertical, Lock, Pencil, Plus, Replace, Sparkles, Trash2, Wand2, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { StylePicker } from '@/components/StylePicker';
 import { useMemo, useState } from 'react';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { CoverageMatrix, TimeBar, VolumePanel, WarningList } from '@/components/PlanWidgets';
 import { Page, PageTitle, Rise, SectionTitle } from '@/components/ui/Page';
-import { Segmented } from '@/components/ui/Segmented';
 import { Sheet } from '@/components/ui/Sheet';
 import { EXERCISE_BY_ID } from '@/data/exercises';
-import { CLASS_LABEL, MODE_BLURB, WEEKDAY_LONG } from '@/data/labels';
+import { CLASS_LABEL, WEEKDAY_LONG, WEEKDAY_SHORT } from '@/data/labels';
 import { applyProposal, computePlan } from '@/engine/recalc';
-import type { Mode, PrescribedDay, PrescribedExercise, Slot } from '@/engine/types';
+import type { PrescribedDay, PrescribedExercise, Slot } from '@/engine/types';
 import { mmss } from '@/lib/format';
-import { engineConfig, useApp, useBudget, usePlan } from '@/store/app';
+import { stateConfig, useActiveSplit, useApp, useBudget, usePlan } from '@/store/app';
 
 let uidCounter = 0;
 const newUid = () => `s${Date.now().toString(36)}${(uidCounter++).toString(36)}`;
@@ -22,16 +23,22 @@ const newUid = () => `s${Date.now().toString(36)}${(uidCounter++).toString(36)}`
 export default function Routine() {
   const plan = usePlan();
   const routine = useApp((s) => s.routine);
-  const mode = useApp((s) => s.settings.mode);
   const changes = useApp((s) => s.changes);
   const updateRoutine = useApp((s) => s.updateRoutine);
-  const setMode = useApp((s) => s.setMode);
   const dismissChange = useApp((s) => s.dismissChange);
-  const [dayIdx, setDayIdx] = useState(0);
+  const split = useActiveSplit();
+  const addDay = useApp((s) => s.addDay);
+  const removeDay = useApp((s) => s.removeDay);
+  const updateDay = useApp((s) => s.updateDay);
+  const [dayIdxRaw, setDayIdx] = useState(0);
+  const dayIdx = Math.min(dayIdxRaw, Math.max(0, routine.days.length - 1));
+  const [dayEdit, setDayEdit] = useState(false);
   const [picker, setPicker] = useState<{ mode: 'swap' | 'add'; slot?: Slot } | null>(null);
   const [optOpen, setOptOpen] = useState(false);
 
   const day = plan.days[dayIdx];
+  // Los nombres del split HD se regeneran según los músculos; los demás los pone el usuario.
+  const autoNames = split?.presetId === 'hd3' && !split.custom;
   const budget = useBudget();
   const dayPlan = routine.days[dayIdx];
   const usedIds = routine.days.flatMap((d) => d.slots.map((s) => s.exerciseId));
@@ -43,7 +50,7 @@ export default function Routine() {
   );
 
   const editDay = (fn: (slots: Slot[]) => Slot[]) =>
-    updateRoutine((r) => ({ days: r.days.map((d, i) => (i === dayIdx ? { ...d, name: null, slots: fn(d.slots) } : d)) }));
+    updateRoutine((r) => ({ days: r.days.map((d, i) => (i === dayIdx ? { ...d, name: autoNames ? null : d.name, slots: fn(d.slots) } : d)) }));
 
   const onDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
@@ -60,18 +67,20 @@ export default function Routine() {
     <Page>
       <PageTitle eyebrow="Constructor · recálculo en vivo" title="Mi rutina" />
 
+      <Rise className="mb-4">
+        <Link to="/splits" className="card press flex min-h-[64px] items-center gap-3 px-4">
+          <span className="min-w-0 flex-1">
+            <span className="eyebrow block">Split</span>
+            <span className="block truncate font-display text-xl font-black uppercase leading-tight">{split?.name ?? 'Mi split'}</span>
+          </span>
+          <span className="text-sm text-muted">Cambiar</span>
+          <ChevronRight size={18} className="text-muted" aria-hidden />
+        </Link>
+      </Rise>
+
       <Rise className="mb-5">
-        <Segmented<Mode>
-          label="Modo de entrenamiento"
-          value={mode}
-          onChange={(m) => setMode(m)}
-          options={[
-            { value: 'puro', label: 'HD Puro' },
-            { value: 'adaptado', label: 'Adaptado' },
-            { value: 'fast40', label: 'Fast-40' }
-          ]}
-        />
-        <p className="mt-2 text-sm text-muted">{MODE_BLURB[mode]}</p>
+        <div className="eyebrow mb-2">Estilo de entrenamiento</div>
+        <StylePicker />
       </Rise>
 
       <AnimatePresence>
@@ -103,19 +112,46 @@ export default function Routine() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div>
           <Rise className="mb-4">
-            <Segmented<number>
-              label="Día"
-              value={dayIdx}
-              onChange={setDayIdx}
-              options={plan.days.map((d, i) => ({ value: i, label: `Día ${i + 1}`, sub: WEEKDAY_LONG[d.day.weekday] }))}
-            />
+            <div className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:px-0" role="tablist" aria-label="Días del split">
+              {plan.days.map((d, i) => (
+                <button
+                  key={d.day.id}
+                  role="tab"
+                  aria-selected={i === dayIdx}
+                  onClick={() => setDayIdx(i)}
+                  className={`press min-h-[56px] min-w-[76px] shrink-0 rounded-md border px-3 text-left ${i === dayIdx ? 'border-ember bg-ember text-onember' : 'border-line bg-raised/40 text-muted'}`}
+                >
+                  <span className="block font-display text-base font-black uppercase leading-tight">Día {i + 1}</span>
+                  <span className={`block text-[11px] ${i === dayIdx ? 'text-onember/80' : ''}`}>{WEEKDAY_SHORT[d.day.weekday]}</span>
+                </button>
+              ))}
+              {routine.days.length < 7 && (
+                <button
+                  onClick={() => {
+                    const taken = routine.days.map((d) => d.weekday);
+                    const free = [1, 2, 3, 4, 5, 6, 0].find((w) => !taken.includes(w)) ?? 0;
+                    addDay('', free);
+                    setDayIdx(routine.days.length);
+                  }}
+                  className="press grid min-h-[56px] min-w-[56px] shrink-0 place-items-center rounded-md border border-dashed border-line2 text-muted"
+                  aria-label="Agregar día"
+                >
+                  <Plus size={20} />
+                </button>
+              )}
+            </div>
           </Rise>
 
           <Rise className="card-forge p-5">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="eyebrow">Día {dayIdx + 1}</div>
-                <h2 className="h-display mt-1 text-3xl">{day.name}</h2>
+                <div className="eyebrow">
+                  Día {dayIdx + 1} · {WEEKDAY_LONG[dayPlan.weekday]}
+                </div>
+                <h2 className="h-display mt-1 text-3xl">{day.name || `Día ${dayIdx + 1}`}</h2>
+                <button onClick={() => setDayEdit(true)} className="press mt-1 inline-flex min-h-[40px] items-center gap-1.5 text-xs text-muted hover:text-fg">
+                  <Pencil size={12} aria-hidden /> Nombre y día de la semana
+                </button>
               </div>
               {(day.overBudget || day.proposal || day.suggestion) && (
                 <motion.button whileTap={{ scale: 0.95 }} onClick={() => setOptOpen(true)} className="btn-ember shrink-0 !min-h-[44px] !px-4 !text-base">
@@ -154,6 +190,9 @@ export default function Routine() {
               </SortableContext>
             </DndContext>
 
+            {dayPlan.slots.length === 0 && (
+              <p className="mt-5 rounded-md border border-dashed border-line2 px-4 py-6 text-center text-sm text-muted">Este día todavía no tiene ejercicios. Agrega el primero.</p>
+            )}
             <button onClick={() => setPicker({ mode: 'add' })} className="btn-ghost mt-3 w-full border-dashed">
               <Plus size={18} /> Agregar ejercicio
             </button>
@@ -195,6 +234,20 @@ export default function Routine() {
             editDay((slots) => [...slots, { uid: newUid(), exerciseId: id }]);
           }
           setPicker(null);
+        }}
+      />
+
+      <DayEditSheet
+        open={dayEdit}
+        onClose={() => setDayEdit(false)}
+        name={dayPlan.name ?? ''}
+        weekday={dayPlan.weekday}
+        taken={routine.days.filter((d) => d.id !== dayPlan.id).map((d) => d.weekday)}
+        canDelete={routine.days.length > 1}
+        onSave={(name, weekday) => updateDay(dayPlan.id, { name, weekday })}
+        onDelete={() => {
+          removeDay(dayPlan.id);
+          setDayIdx(Math.max(0, dayIdx - 1));
         }}
       />
 
@@ -316,7 +369,7 @@ function OptimizeSheet({ open, onClose, day, dayIdx }: { open: boolean; onClose:
   const after = useMemo(() => {
     if (!day.proposal) return null;
     const r = applyProposal(s.routine, day.day.id, day.proposal.removeUid);
-    return computePlan(r, s.profile, engineConfig(s.settings)).days[dayIdx];
+    return computePlan(r, s.profile, stateConfig(s)).days[dayIdx];
   }, [day, s.routine, s.profile, s.settings, dayIdx]);
 
   return (
@@ -389,3 +442,96 @@ function DayColumn({ title, day, highlight }: { title: string; day: PrescribedDa
   );
 }
 
+
+function DayEditSheet({
+  open,
+  onClose,
+  name,
+  weekday,
+  taken,
+  canDelete,
+  onSave,
+  onDelete
+}: {
+  open: boolean;
+  onClose: () => void;
+  name: string;
+  weekday: number;
+  taken: number[];
+  canDelete: boolean;
+  onSave: (name: string, weekday: number) => void;
+  onDelete: () => void;
+}) {
+  const [n, setN] = useState(name);
+  const [wd, setWd] = useState(weekday);
+  const [confirm, setConfirm] = useState(false);
+  const [lastOpen, setLastOpen] = useState(false);
+  if (open !== lastOpen) {
+    setLastOpen(open);
+    if (open) {
+      setN(name);
+      setWd(weekday);
+      setConfirm(false);
+    }
+  }
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Editar día"
+      eyebrow="Split"
+      footer={
+        <button
+          className="btn-ember w-full"
+          onClick={() => {
+            onSave(n, wd);
+            onClose();
+          }}
+        >
+          Guardar
+        </button>
+      }
+    >
+      <label className="block">
+        <span className="eyebrow mb-1.5 block">Nombre del día</span>
+        <input className="field" maxLength={40} placeholder="Ej.: Pecho y bíceps" value={n} onChange={(e) => setN(e.target.value)} />
+      </label>
+      <div className="mt-4">
+        <div className="eyebrow mb-1.5">Día de la semana</div>
+        <div className="grid grid-cols-7 gap-1" role="radiogroup" aria-label="Día de la semana">
+          {[1, 2, 3, 4, 5, 6, 0].map((w) => (
+            <button
+              key={w}
+              role="radio"
+              aria-checked={wd === w}
+              disabled={taken.includes(w)}
+              onClick={() => setWd(w)}
+              className={`press min-h-[48px] rounded-md border text-xs font-semibold disabled:opacity-30 ${wd === w ? 'border-ember bg-ember text-onember' : 'border-line text-muted'}`}
+            >
+              {WEEKDAY_SHORT[w]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {canDelete && (
+        <div className="mt-6 border-t border-line pt-4">
+          {confirm ? (
+            <button
+              className="btn-ghost w-full !border-ember text-ember"
+              onClick={() => {
+                onDelete();
+                onClose();
+              }}
+            >
+              <Trash2 size={16} /> Sí, eliminar este día y sus ejercicios
+            </button>
+          ) : (
+            <button className="btn-ghost w-full" onClick={() => setConfirm(true)}>
+              <Trash2 size={16} /> Eliminar día
+            </button>
+          )}
+        </div>
+      )}
+    </Sheet>
+  );
+}

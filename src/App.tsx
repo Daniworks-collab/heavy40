@@ -14,6 +14,7 @@ const Calendar = lazy(() => import('./screens/Calendar'));
 const Nutrition = lazy(() => import('./screens/Nutrition'));
 const SettingsScreen = lazy(() => import('./screens/Settings'));
 const More = lazy(() => import('./screens/More'));
+const Splits = lazy(() => import('./screens/Splits'));
 const Workout = lazy(() => import('./screens/Workout'));
 
 function Gate({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,7 @@ const router = createBrowserRouter([
       { path: '/nutricion', element: <Nutrition /> },
       { path: '/ajustes', element: <SettingsScreen /> },
       { path: '/mas', element: <More /> },
+      { path: '/splits', element: <Splits /> },
       { path: '*', element: <Navigate to="/" replace /> }
     ]
   }

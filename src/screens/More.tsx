@@ -8,6 +8,7 @@ import { Logo } from '@/components/ui/Logo';
 import { Page, PageTitle, Rise } from '@/components/ui/Page';
 
 const SUB: Record<string, string> = {
+  '/splits': 'Elige, crea y nombra tus splits',
   '/calendario': 'Calendario, reprogramar, descarga, readiness',
   '/metodo': 'Principios, ciencia, glosario y FAQ',
   '/nutricion': 'Proteína, sueño e hidratación',

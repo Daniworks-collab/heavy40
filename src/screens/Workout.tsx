@@ -446,7 +446,7 @@ export default function Workout() {
           exclude={live.items.map((i) => i.exerciseId)}
           onSelect={(id) => {
             const nx = getExercise(id);
-            const rule = classRule(nx, settings.mode, { restOverrides: settings.restOverrides, repRange: settings.repRange });
+            const rule = classRule(nx, settings.mode, { restOverrides: settings.restOverrides, repRange: settings.repRange, custom: settings.custom });
             live.swapExercise(item.uid, {
               exerciseId: id,
               reps: rule.reps,
@@ -701,10 +701,11 @@ function Summary({ onExit }: { onExit: () => void }) {
   }, [sessions]);
 
   // ───── XP y rango ─────
-  const xpBefore = useMemo(() => totalXp(sessions ?? []), [sessions]);
+  const perWeek = useApp((s) => s.routine.days.length);
+  const xpBefore = useMemo(() => totalXp(sessions ?? [], perWeek), [sessions, perWeek]);
   const xpAfter = useMemo(() => {
     const fake = { date: new Date(live.startedAt).toISOString(), sets: work, prs, durationSec: duration, budgetSec: budget } as unknown as SessionRecord;
-    return totalXp([...(sessions ?? []), fake]);
+    return totalXp([...(sessions ?? []), fake], perWeek);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, prs, duration]);
   const before = rankFor(xpBefore);

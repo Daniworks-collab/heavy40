@@ -6,13 +6,15 @@ import { Segmented } from '@/components/ui/Segmented';
 import { Sheet } from '@/components/ui/Sheet';
 import { Stepper } from '@/components/ui/Stepper';
 import { Toggle } from '@/components/ui/Toggle';
-import { CLASS_LABEL, EQUIPMENT, EQUIPMENT_LABEL, JOINTS, JOINT_LABEL, LEVEL_LABEL, MODE_BLURB, MUSCLES, MUSCLE_LABEL, WEEKDAY_SHORT } from '@/data/labels';
+import { CLASS_LABEL, EQUIPMENT, EQUIPMENT_LABEL, JOINTS, JOINT_LABEL, LEVEL_LABEL, MUSCLES, MUSCLE_LABEL, WEEKDAY_SHORT } from '@/data/labels';
 import { exportAll, importAll, wipeAll } from '@/db';
 import { DEFAULT_REST } from '@/engine/rules';
 import { spacingWarnings } from '@/engine/validate';
-import type { Equipment, ExerciseClass, Joint, Level, Mode, Muscle } from '@/engine/types';
+import type { Equipment, ExerciseClass, Joint, Level, Muscle } from '@/engine/types';
 import { seedDemo } from '@/lib/demo';
-import { useApp, withDefaults, type Theme } from '@/store/app';
+import { activeSplit, useApp, withDefaults, type Theme } from '@/store/app';
+import { Link } from 'react-router-dom';
+import { StylePicker } from '@/components/StylePicker';
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -26,6 +28,9 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 export default function Settings() {
   const s = useApp();
   const st = withDefaults(s.settings);
+  const sp = activeSplit(s);
+  const activeSplitName = sp?.name ?? 'Mi split';
+  const activeRestRule = sp?.restRule ?? 'sesion';
   const [lines, setLines] = useState<string[]>([]);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -37,19 +42,6 @@ export default function Settings() {
   };
 
   const weekdays = s.routine.days.map((d) => d.weekday);
-  const toggleDay = (wd: number) => {
-    if (weekdays.includes(wd)) return;
-    // Mueve al día seleccionado más cercano; cada sesión conserva su identidad (Día 1/2/3).
-    const dist = (a: number, b: number) => Math.min((a - b + 7) % 7, (b - a + 7) % 7);
-    let idx = 0;
-    weekdays.forEach((w, i) => {
-      if (dist(w, wd) < dist(weekdays[idx], wd)) idx = i;
-    });
-    const next = [...weekdays];
-    next[idx] = wd;
-    s.setWeekdays(next);
-  };
-
   const doExport = async () => {
     const data = await exportAll();
     const { onboarded, fitnessAck, profile, routine, settings, loads, changes, programStart, deloads, overrides, water, sleepGoal } = useApp.getState();
@@ -96,19 +88,15 @@ export default function Settings() {
       </AnimatePresence>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Group title="Modo">
-          <Segmented<Mode>
-            label="Modo"
-            value={s.settings.mode}
-            onChange={(m) => show(s.setMode(m))}
-            options={[
-              { value: 'puro', label: 'HD Puro' },
-              { value: 'adaptado', label: 'Adaptado' },
-              { value: 'fast40', label: 'Fast-40' }
-            ]}
-          />
-          <p className="mt-2 text-sm text-muted">{MODE_BLURB[s.settings.mode]}</p>
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-line px-4 py-3 text-sm">
+        <Group title="Estilo y split">
+          <StylePicker onLines={show} />
+          <Link to="/splits" className="press mt-4 flex min-h-[52px] items-center justify-between rounded-md border border-line px-4 text-sm">
+            <span>
+              Split: <span className="font-semibold">{activeSplitName}</span>
+            </span>
+            <span className="text-muted">Cambiar ›</span>
+          </Link>
+          <div className="mt-2 flex items-center justify-between rounded-md border border-line px-4 py-3 text-sm">
             <span>Unidades</span>
             <span className="num text-muted">kg</span>
           </div>
@@ -233,24 +221,38 @@ export default function Settings() {
         </Group>
 
         <Group title="Días de entrenamiento">
-          <div className="grid grid-cols-7 gap-1.5">
-            {[1, 2, 3, 4, 5, 6, 0].map((wd) => (
-              <button
-                key={wd}
-                onClick={() => toggleDay(wd)}
-                aria-pressed={weekdays.includes(wd)}
-                className={`min-h-[52px] rounded-xl border text-sm font-medium ${weekdays.includes(wd) ? 'border-ember bg-ember text-onember' : 'border-line text-muted'}`}
-              >
-                {WEEKDAY_SHORT[wd]}
-              </button>
+          <div className="space-y-3">
+            {s.routine.days.map((d, i) => (
+              <div key={d.id}>
+                <div className="mb-1 text-sm font-medium">{d.name || `Día ${i + 1}`}</div>
+                <div className="grid grid-cols-7 gap-1" role="radiogroup" aria-label={`Día de la semana de ${d.name || `Día ${i + 1}`}`}>
+                  {[1, 2, 3, 4, 5, 6, 0].map((wd) => {
+                    const on = d.weekday === wd;
+                    const taken = !on && weekdays.includes(wd);
+                    return (
+                      <button
+                        key={wd}
+                        role="radio"
+                        aria-checked={on}
+                        disabled={taken}
+                        onClick={() => s.updateDay(d.id, { weekday: wd })}
+                        className={`press min-h-[44px] rounded-md border text-xs font-medium disabled:opacity-30 ${on ? 'border-ember bg-ember text-onember' : 'border-line text-muted'}`}
+                      >
+                        {WEEKDAY_SHORT[wd]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
-          {spacingWarnings(weekdays).map((w) => (
-            <p key={w.text} className="mt-2 text-sm text-warn">
-              {w.text}
-            </p>
-          ))}
-          <p className="mt-2 text-xs text-muted">Toca un día libre para moverlo ahí; se sustituye el día más cercano. Por defecto L-M-V.</p>
+          {activeRestRule === 'sesion' &&
+            spacingWarnings(weekdays).map((w) => (
+              <p key={w.text} className="mt-2 text-sm text-warn">
+                {w.text}
+              </p>
+            ))}
+          <p className="mt-3 text-xs text-muted">Para agregar o quitar días, ve a Mi rutina o a Splits.</p>
         </Group>
 
         <Group title="Sonido, vibración y tema">

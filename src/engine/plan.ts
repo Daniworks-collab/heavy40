@@ -1,6 +1,6 @@
 import { EXERCISES, EXERCISE_BY_ID } from '@/data/exercises';
 import { MUSCLE_LABEL } from '@/data/labels';
-import { ANTAGONISTS, BIG, TEMPO, classRule, priorityFor, softenEffort, techniqueFor, volumeTarget, warmupsFor } from './rules';
+import { ANTAGONISTS, BIG, TEMPO, classRule, priorityFor, setPolicy, softenEffort, techniqueFor, volumeTarget, warmupsFor } from './rules';
 import { buildTimeline, sumSeconds } from './time';
 import type {
   Adjustment,
@@ -114,7 +114,8 @@ function derive(entries: Entry[], ctx: DayContext): PrescribedExercise[] {
     const rest = e.restShort && ex.cls === 'A' ? Math.min(60, rule.rest) : rule.rest;
     const paired = pairs.has(e.slot.uid);
     const tech = techniqueFor(ex, config.mode, { conservative: !!config.conservative, preExhaust, paired });
-    const warmups = e.warmupCut ? [] : warmupsFor(ex, { isMain, firstOfMuscle, preExhausted, yates: config.mode === 'puro' });
+    const noWarmups = config.mode === 'custom' && config.custom && !config.custom.warmups;
+    const warmups = e.warmupCut || noWarmups ? [] : warmupsFor(ex, { isMain, firstOfMuscle, preExhausted, yates: config.mode === 'puro' });
     items.push({
       uid: e.slot.uid,
       slot: e.slot,
@@ -139,7 +140,8 @@ function derive(entries: Entry[], ctx: DayContext): PrescribedExercise[] {
 
 function evaluate(entries: Entry[], ctx: DayContext) {
   const items = derive(entries, ctx);
-  const timeline = buildTimeline(items, ctx.config.generalWarmup, ctx.config.mode, ctx.config.secPerRep);
+  // Un día sin ejercicios no consume tiempo (ni calentamiento general)
+  const timeline = items.length ? buildTimeline(items, ctx.config.generalWarmup, ctx.config.mode, ctx.config.secPerRep) : [];
   const perUid = new Map<string, number>();
   for (const s of timeline) if (s.uid) perUid.set(s.uid, (perUid.get(s.uid) ?? 0) + s.seconds);
   for (const it of items) it.seconds = perUid.get(it.uid) ?? 0;
@@ -171,6 +173,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
   const { config, profile } = ctx;
   const adjustments: Adjustment[] = [];
   const mode = config.mode;
+  const policy = setPolicy(mode, config.custom);
   const used = new Set<string>(ctx.usedElsewhere ?? []);
   day.slots.forEach((s) => used.add(s.exerciseId));
 
@@ -193,7 +196,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
     entries.push({
       slot,
       ex,
-      sets: 1,
+      sets: policy.base(ex),
       included: !slot.optional,
       locked: mode !== 'puro' && slot.lockedSets != null,
       fixed: false,
@@ -212,7 +215,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
   });
 
   const included = () => entries.filter((e) => e.included);
-  const cap = () => (included().length <= 4 ? 3 : 2);
+  const cap = () => policy.max(included().length);
   for (const e of entries) {
     if (e.locked) e.sets = Math.max(1, Math.min(e.slot.lockedSets ?? 1, cap()));
   }
@@ -228,7 +231,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
   const tryAddSet = (e: Entry, maxSets: number): boolean => {
     if (!e.included || e.locked || e.fixed) return false;
     if (e.sets >= Math.min(maxSets, cap())) return false;
-    if (muscleSets(e.ex.primary) >= 4) return false;
+    if (muscleSets(e.ex.primary) >= policy.muscleCap) return false;
     e.sets++;
     const before = state;
     reval();
@@ -277,8 +280,10 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
     return true;
   };
 
-  if (mode !== 'puro') {
-    fillPass(2, config.conservative ? [0] : [0, 1]);
+  // 2ª serie (HD) o 4ª (clásico) en el primer pase
+  const firstMax = mode === 'clasico' ? 4 : 2;
+  if (policy.fill) {
+    fillPass(firstMax, config.conservative ? [0] : [0, 1]);
   }
   if (!config.conservative) {
     // (3) aislamientos de músculos con poco volumen semanal. Los ejercicios opcionales
@@ -289,7 +294,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
       const list: Action[] = [];
       for (const e of entries) {
         if (e.slot.optional && !e.included) list.push({ e, include: true });
-        else if (e.included && mode !== 'puro') list.push({ e, include: false });
+        else if (e.included && policy.fill) list.push({ e, include: false });
       }
       const iso = (a: Action) => (a.e.ex.cls === 'A' || a.e.ex.cls === 'P' ? 0 : 1);
       return list.sort((a, b) => iso(a) - iso(b) || lowVolume(a.e, b.e) || Number(a.include) - Number(b.include));
@@ -297,13 +302,13 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
     for (const a of actions()) {
       if (!hasRoom()) break;
       if (a.include) tryInclude(a.e);
-      else tryAddSet(a.e, 2);
+      else tryAddSet(a.e, firstMax);
     }
     for (const e of entries.filter((x) => x.slot.optional && !x.included)) {
       adjustments.push({ kind: 'skip-optional', uid: e.slot.uid, exerciseId: e.ex.id, text: `${e.ex.name} no cabe hoy` });
     }
-    // 3ª serie sólo en sesiones de ≤4 ejercicios
-    if (mode !== 'puro' && included().length <= 4) fillPass(3, [0, 1, 2]);
+    // Hasta el máximo del estilo (HD: 3ª serie sólo en sesiones de ≤4 ejercicios)
+    if (policy.fill) fillPass(cap(), [0, 1, 2]);
   }
 
   // 3. Recortes si se pasa del presupuesto
@@ -357,7 +362,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
   // 4. Sugerencia de ejercicio extra si sobra mucho tiempo
   let suggestion: PrescribedDay['suggestion'];
   const floor = config.target - 120; // 36 min
-  if (!overBudget && state.seconds < floor && !config.conservative) {
+  if (!overBudget && state.items.length > 0 && state.seconds < floor && !config.conservative) {
     const inDay = new Set(entries.map((e) => e.ex.id));
     const wanted: Muscle[] = (['core', 'gemelos', 'hombros'] as Muscle[]).sort(
       (a, b) => (weekly[a] ?? 0) / volumeTarget(a) - (weekly[b] ?? 0) / volumeTarget(b)
