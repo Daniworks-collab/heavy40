@@ -7,9 +7,10 @@ export function useWakeLock(active: boolean) {
     let cancelled = false;
     const request = async () => {
       try {
+        if (sentinel && !sentinel.released) return;
         sentinel = await navigator.wakeLock.request('screen');
       } catch {
-        /* permiso denegado o pestaña oculta */
+        /* Puede fallar por batería baja, ahorro de energía o pestaña oculta: no es crítico. */
       }
     };
     void request();

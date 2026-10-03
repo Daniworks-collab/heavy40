@@ -7,6 +7,7 @@ import '@fontsource/instrument-sans/latin-600';
 import '@fontsource/jetbrains-mono/latin-400';
 import '@fontsource/jetbrains-mono/latin-600';
 import './styles/index.css';
+import './lib/install';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';

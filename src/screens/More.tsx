@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Calculator, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { ToolsSheet } from '@/components/Calculators';
+import { InstallCard } from '@/components/InstallCard';
 import { Link } from 'react-router-dom';
 import { MORE_LINKS } from '@/components/Layout';
 import { Logo } from '@/components/ui/Logo';
@@ -20,6 +21,9 @@ export default function More() {
   return (
     <Page>
       <PageTitle eyebrow="HEAVY·40" title="Más" />
+      <Rise className="mb-4">
+        <InstallCard />
+      </Rise>
       <div className="space-y-2">
         {MORE_LINKS.map((l) => (
           <Rise key={l.to}>

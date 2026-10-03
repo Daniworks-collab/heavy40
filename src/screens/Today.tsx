@@ -233,7 +233,7 @@ export function Today() {
                 Agregar ejercicios a este día
               </Link>
             ) : (
-              <motion.button whileTap={{ scale: 0.97 }} className="btn-ember min-h-[72px] w-full text-[clamp(19px,5.6vw,26px)]" onClick={() => setReadyOpen(true)}>
+              <motion.button whileTap={{ scale: 0.97 }} className="btn-ember min-h-[72px] w-full text-[clamp(19px,5.6vw,26px)] lg:text-[22px] xl:text-[24px]" onClick={() => setReadyOpen(true)}>
                 <Play size={24} fill="currentColor" /> {restDay ? 'Entrenar de todos modos' : 'Iniciar entrenamiento'}
               </motion.button>
             )}

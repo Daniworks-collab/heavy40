@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { CalendarCheck, ChevronDown, Database, Plus, Timer, TrendingDown, TrendingUp, Trophy, Weight } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Database, Plus, Share2, Timer, TrendingDown, TrendingUp, Trophy, Weight } from 'lucide-react';
+import { shareMessage, shareSession } from '@/lib/share';
 import { MuscleMap } from '@/components/MuscleMap';
 import { Tilt } from '@/components/Motion';
 import { useMemo, useState } from 'react';
@@ -33,6 +34,7 @@ export default function Progress() {
   const [muscle, setMuscle] = useState<Muscle>('pecho');
   const [bodyOpen, setBodyOpen] = useState(false);
   const [openSession, setOpenSession] = useState<number | null>(null);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   const exIds = useMemo(() => {
     const seen = new Set<string>();
@@ -324,6 +326,27 @@ export default function Progress() {
                         </div>
                       ))}
                       {s.notes && <p className="mt-2 rounded-md border border-line bg-bg/50 px-3 py-2 text-sm italic text-muted">“{s.notes}”</p>}
+                      <button
+                        className="chip mt-3 min-h-[44px]"
+                        onClick={async () => {
+                          const res = await shareSession({
+                            dayName: s.dayName,
+                            date: new Date(s.date),
+                            durationSec: s.durationSec,
+                            budgetSec: s.budgetSec ?? 2400,
+                            sets: s.sets.filter((x) => x.kind === 'work').length,
+                            volumeKg: s.volumeKg,
+                            prs: s.prs.map((p) => ({ exercise: getExercise(p.exerciseId).name, text: p.text }))
+                          });
+                          const msg = shareMessage(res);
+                          if (msg) {
+                            setShareMsg(msg);
+                            setTimeout(() => setShareMsg(null), 2500);
+                          }
+                        }}
+                      >
+                        <Share2 size={14} aria-hidden /> Compartir sesión
+                      </button>
                       <div className="mt-2 text-xs text-muted">
                         Volumen {Math.round(s.volumeKg)} kg{s.conservative && ' · conservador'}
                         {s.deload && ' · descarga'}
@@ -337,6 +360,11 @@ export default function Progress() {
         </ul>
       </Rise>
 
+      {shareMsg && (
+        <div className="glass fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-md border px-4 py-3 text-center text-sm" role="status">
+          {shareMsg}
+        </div>
+      )}
       <BodySheet open={bodyOpen} onClose={() => setBodyOpen(false)} />
     </Page>
   );

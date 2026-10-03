@@ -21,7 +21,15 @@ export default defineConfig({
         lang: 'es-MX',
         theme_color: '#121215',
         background_color: '#121215',
+        id: base,
         display: 'standalone',
+        display_override: ['standalone', 'minimal-ui'],
+        categories: ['health', 'fitness', 'sports'],
+        shortcuts: [
+          { name: 'Hoy', short_name: 'Hoy', url: base, icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+          { name: 'Mi rutina', short_name: 'Rutina', url: `${base}rutina`, icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+          { name: 'Progreso', short_name: 'Progreso', url: `${base}progreso`, icons: [{ src: 'icon-192.png', sizes: '192x192' }] }
+        ],
         orientation: 'portrait',
         start_url: base,
         scope: base,

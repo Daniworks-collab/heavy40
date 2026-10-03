@@ -47,3 +47,24 @@ export function vibrate(pattern: number | number[]) {
     /* no-op */
   }
 }
+
+/** ¿El navegador puede vibrar? (Safari en iPhone no expone la API de vibración.) */
+export function canVibrate(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+}
+
+/**
+ * Aviso de descanso: vibración si existe y, como respaldo, sonido.
+ * Si el usuario pidió vibración pero el teléfono no puede (iPhone), suena siempre.
+ */
+export function restAlert(kind: 'warn' | 'end', s: { sound: boolean; vibration: boolean }) {
+  const vib = s.vibration && canVibrate();
+  if (vib) vibrate(kind === 'warn' ? 80 : [120, 60, 120]);
+  const mustSound = s.sound || (s.vibration && !canVibrate());
+  if (!mustSound) return;
+  if (kind === 'warn') beep(660, 110, 0.15);
+  else {
+    beep(990, 160, 0.2);
+    setTimeout(() => beep(1320, 260, 0.2), 180);
+  }
+}

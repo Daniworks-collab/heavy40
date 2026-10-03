@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, type PanInfo } from 'motion/react';
-import { Calculator, Check, ChevronLeft, ChevronRight, Info, Replace, Scissors, ShieldAlert, SkipForward, Trophy, X } from 'lucide-react';
+import { Calculator, Check, ChevronLeft, ChevronRight, Info, Replace, Scissors, Share2, ShieldAlert, SkipForward, Trophy, X } from 'lucide-react';
+import { shareMessage, shareSession } from '@/lib/share';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Shockwave, Sparks } from '@/components/Fx';
@@ -22,7 +23,7 @@ import type { Effort, Muscle } from '@/engine/types';
 import { useNow } from '@/hooks/useNow';
 import { useSessions } from '@/hooks/useSessions';
 import { useWakeLock } from '@/hooks/useWakeLock';
-import { anvil, beep, vibrate } from '@/lib/feedback';
+import { anvil, beep, restAlert, vibrate } from '@/lib/feedback';
 import { kg as fmtKg, int, mmss } from '@/lib/format';
 import { medals, newlyUnlocked, rankFor, totalXp } from '@/lib/rank';
 import { MedalGrid, RankBadge } from '@/components/Rank';
@@ -84,16 +85,11 @@ export default function Workout() {
     if (!live.restEndsAt) return;
     if (restLeft <= 10 && restLeft > 0 && !warned.current.ten && live.restTotal > 15) {
       warned.current.ten = true;
-      if (settings.sound) beep(660, 110, 0.15);
-      if (settings.vibration) vibrate(80);
+      restAlert('warn', settings);
     }
     if (restLeft <= 0 && !warned.current.zero) {
       warned.current.zero = true;
-      if (settings.sound) {
-        beep(990, 160, 0.2);
-        setTimeout(() => beep(1320, 260, 0.2), 180);
-      }
-      if (settings.vibration) vibrate([120, 60, 120]);
+      restAlert('end', settings);
       useLive.getState().skipRest();
     }
   }, [restLeft, live.restEndsAt, live.restTotal, settings.sound, settings.vibration]);
@@ -685,6 +681,9 @@ function Summary({ onExit }: { onExit: () => void }) {
   const [saved, setSaved] = useState(false);
   const [spark, setSpark] = useState(0);
   const [notes, setNotes] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const splitName = useApp((s) => s.splits?.find((x) => x.id === s.activeSplitId)?.name);
   const budget = live.budget || 2400;
   useEffect(() => {
     if (live.endedAt == null) live.finish();
@@ -881,6 +880,38 @@ function Summary({ onExit }: { onExit: () => void }) {
         <button className="btn-ember min-h-[60px] text-xl" onClick={save} disabled={saved}>
           Guardar sesión
         </button>
+        <button
+          className="btn-ghost"
+          disabled={sharing}
+          onClick={async () => {
+            setSharing(true);
+            const res = await shareSession({
+              dayName: live.dayName,
+              date: new Date(live.startedAt),
+              durationSec: duration,
+              budgetSec: budget,
+              sets: work.length,
+              volumeKg: volume,
+              prs: prs.map((p) => ({ exercise: getExercise(p.exerciseId).name, text: p.text })),
+              splitName: splitName,
+              rankName: after.rank.name,
+              xpGained: xpAfter - xpBefore
+            });
+            setSharing(false);
+            const msg = shareMessage(res);
+            if (msg) {
+              setShareMsg(msg);
+              setTimeout(() => setShareMsg(null), 2500);
+            }
+          }}
+        >
+          <Share2 size={18} aria-hidden /> {sharing ? 'Preparando…' : 'Compartir'}
+        </button>
+        {shareMsg && (
+          <p className="text-center text-sm text-ok" role="status">
+            {shareMsg}
+          </p>
+        )}
         <button
           className="btn-ghost"
           onClick={() => {

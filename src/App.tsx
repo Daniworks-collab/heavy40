@@ -2,6 +2,7 @@ import { MotionConfig } from 'motion/react';
 import { lazy, Suspense, useEffect } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { ConnectionBanner } from './components/ConnectionBanner';
 import { useApp } from './store/app';
 import { Today } from './screens/Today';
 import { Onboarding } from './screens/Onboarding';
@@ -67,6 +68,7 @@ export function App() {
   }, [theme]);
   return (
     <MotionConfig reducedMotion="user">
+      <ConnectionBanner />
       <RouterProvider router={router} />
     </MotionConfig>
   );
