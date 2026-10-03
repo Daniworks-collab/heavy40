@@ -56,8 +56,13 @@ interface LiveState {
   trimNotes: string[];
   /** Momento en que se terminó (resumen visible aunque recargues). */
   endedAt: number | null;
+  /** Tiempo disponible de esta sesión (s). */
+  budget: number;
+  /** Ejercicios cambiados durante la sesión: uid → ejercicio original */
+  swapped: Record<string, string>;
 
-  start: (day: PrescribedDay, opts: { conservative: boolean; deload: boolean; readiness?: LiveState['readiness'] }) => void;
+  start: (day: PrescribedDay, opts: { conservative: boolean; deload: boolean; budget: number; readiness?: LiveState['readiness'] }) => void;
+  swapExercise: (uid: string, item: Pick<LiveItem, 'exerciseId' | 'reps' | 'effort' | 'rest' | 'technique'>) => void;
   log: (set: Omit<LiveLog, 'at' | 'taskId'>) => void;
   addTechnique: (technique: string) => void;
   adjustRest: (delta: number) => void;
@@ -147,6 +152,8 @@ export const useLive = create<LiveState>()(
       restLabel: '',
       trimNotes: [],
       endedAt: null,
+      budget: 2400,
+      swapped: {},
 
       start: (day, opts) => {
         const { items, tasks } = buildTasks(day, opts.deload);
@@ -168,7 +175,9 @@ export const useLive = create<LiveState>()(
           restTotal: general,
           restLabel: general > 0 ? 'Calentamiento general' : '',
           trimNotes: [],
-          endedAt: null
+          endedAt: null,
+          budget: opts.budget,
+          swapped: {}
         });
       },
       log: (s) => {
@@ -183,6 +192,15 @@ export const useLive = create<LiveState>()(
           restEndsAt: rest > 0 ? Date.now() + rest * 1000 : null,
           restTotal: rest,
           restLabel: task.restLabel
+        });
+      },
+      swapExercise: (uid, next) => {
+        const st = get();
+        const cur = st.items.find((i) => i.uid === uid);
+        if (!cur) return;
+        set({
+          items: st.items.map((i) => (i.uid === uid ? { ...i, ...next } : i)),
+          swapped: { ...st.swapped, [uid]: st.swapped[uid] ?? cur.exerciseId }
         });
       },
       addTechnique: (technique) => {
@@ -215,7 +233,7 @@ export const useLive = create<LiveState>()(
         const removeWhere = (pred: (t: LiveTask) => boolean, label: (t: LiveTask) => string, order: (a: LiveTask, b: LiveTask) => number) => {
           const cands = remaining.slice(1).filter(pred).sort(order);
           for (const c of cands) {
-            if (projected() <= 2400) break;
+            if (projected() <= st.budget) break;
             remaining = remaining.filter((t) => t.id !== c.id);
             notes.push(label(c));
           }

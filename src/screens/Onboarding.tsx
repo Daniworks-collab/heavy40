@@ -44,10 +44,11 @@ export function Onboarding() {
   const [injuries, setInjuries] = useState<Joint[]>([]);
   const [priorities, setPriorities] = useState<Muscle[]>([]);
   const [mode, setMode] = useState<Mode>('adaptado');
+  const [minutesAvail, setMinutesAvail] = useState(40);
   const [calib, setCalib] = useState<Record<string, { kg: number; reps: number }>>({});
 
   const profile: Profile = { level, bodyweight: bw, equipment, injuries, priorities };
-  const plan = useMemo(() => computePlan(defaultRoutine(days), profile, engineConfig({ ...DEFAULT_SETTINGS, mode })), [days, level, bw, equipment, injuries, priorities, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const plan = useMemo(() => computePlan(defaultRoutine(days), profile, engineConfig({ ...DEFAULT_SETTINGS, mode, sessionMinutes: minutesAvail })), [days, level, bw, equipment, injuries, priorities, mode, minutesAvail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const STEPS = 9;
   const go = (d: 1 | -1) => {
@@ -59,7 +60,7 @@ export function Onboarding() {
   const finish = () => {
     const loads: Record<string, number> = {};
     for (const [id, v] of Object.entries(calib)) if (v.kg > 0 && v.reps > 0) loads[id] = calibrationLoad(getExercise(id), v.kg, v.reps).load;
-    complete({ profile, mode, weekdays: days, loads });
+    complete({ profile, mode, weekdays: days, loads, sessionMinutes: minutesAvail });
     navigate('/', { replace: true });
   };
 
@@ -92,7 +93,7 @@ export function Onboarding() {
             <span className="text-ember">Infrecuente.</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }} className="relative mt-5 max-w-sm text-muted">
-            Heavy Duty en sesiones de máximo 40 minutos, 3 días por semana. Una rutina que se recalcula sola cada vez que la cambias.
+            Heavy Duty en sesiones cortas (40 minutos o el tiempo que tengas), 3 días por semana. Una rutina que se recalcula sola cada vez que la cambias.
           </motion.p>
         </div>
       );
@@ -148,7 +149,25 @@ export function Onboarding() {
       break;
     case 3:
       body = (
-        <Step eyebrow="Agenda" title="3 días">
+        <Step eyebrow="Agenda" title="Tu tiempo">
+          <div className="mb-6">
+            <div className="mb-2 font-medium">¿Cuánto tiempo tienes por sesión?</div>
+            <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="Minutos por sesión">
+              {[30, 40, 45, 60].map((m) => (
+                <button
+                  key={m}
+                  role="radio"
+                  aria-checked={minutesAvail === m}
+                  onClick={() => setMinutesAvail(m)}
+                  className={`press num min-h-[56px] rounded-md border text-lg font-semibold ${minutesAvail === m ? 'border-ember bg-ember text-onember' : 'border-line text-muted'}`}
+                >
+                  {m}′
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-muted">Heavy Duty funciona con sesiones cortas. Lo puedes cambiar en Ajustes o el día que entrenes.</p>
+          </div>
+          <div className="mb-2 font-medium">Tus 3 días</div>
           <p className="mb-4 text-sm text-muted">Nunca consecutivos: ≥48 h entre sesiones. Por defecto lunes, miércoles y viernes.</p>
           <div className="grid grid-cols-7 gap-1.5">
             {[1, 2, 3, 4, 5, 6, 0].map((wd) => (
@@ -273,7 +292,7 @@ export function Onboarding() {
           <div className="grid gap-2">
             {plan.days.map((d, i) => (
               <motion.div key={d.day.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} className="card flex items-center gap-4 p-4">
-                <Ring value={d.seconds / 2400} size={68} stroke={6} ticks={20} label={`${Math.round(d.seconds / 60)} minutos`}>
+                <Ring value={d.seconds / (minutesAvail * 60)} size={68} stroke={6} ticks={20} label={`${Math.round(d.seconds / 60)} minutos`}>
                   <span className="num text-sm font-semibold">{Math.round(d.seconds / 60)}′</span>
                 </Ring>
                 <div className="min-w-0">

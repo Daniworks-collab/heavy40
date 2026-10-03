@@ -5,19 +5,21 @@ import { buildTimeline, sumSeconds, targetReps, workSetSeconds } from '../time';
 import { cfg, profile, routine, swap } from './helpers';
 
 describe('modelo de tiempo', () => {
-  it('serie efectiva = reps objetivo × 5 s + 10 s', () => {
+  it('serie efectiva = reps objetivo × segundos por rep (cadencia) + 10 s', () => {
     expect(targetReps([8, 12])).toBe(10);
-    expect(workSetSeconds({ reps: [8, 12] }, true)).toBe(60);
-    expect(workSetSeconds({ reps: [8, 12], technique: 'rest-pause', techniqueMini: 2 }, true)).toBe(90);
-    expect(workSetSeconds({ reps: [8, 12], technique: 'rest-pause', techniqueMini: 2 }, false)).toBe(60);
-    expect(workSetSeconds({ reps: [6, 10], technique: 'negativas' }, true)).toBe(70);
+    // cadencia por defecto 2-0-4 = 6 s/rep
+    expect(workSetSeconds({ reps: [8, 12] }, true)).toBe(70);
+    expect(workSetSeconds({ reps: [8, 12] }, true, 5)).toBe(60);
+    expect(workSetSeconds({ reps: [8, 12], technique: 'rest-pause', techniqueMini: 2 }, true, 5)).toBe(90);
+    expect(workSetSeconds({ reps: [8, 12], technique: 'rest-pause', techniqueMini: 2 }, false, 5)).toBe(60);
+    expect(workSetSeconds({ reps: [6, 10], technique: 'negativas' }, true, 5)).toBe(70);
   });
 
   it('la estimación es la suma del timeline e incluye el calentamiento general', () => {
     const p = computePlan(routine(), profile(), cfg('adaptado', { generalWarmup: 0 }));
     const p3 = computePlan(routine(), profile(), cfg('adaptado', { generalWarmup: 180 }));
     const d = p.days[0];
-    expect(sumSeconds(buildTimeline(d.items, 0, 'adaptado'))).toBe(d.seconds);
+    expect(sumSeconds(buildTimeline(d.items, 0, 'adaptado', 6))).toBe(d.seconds);
     expect(p3.days[0].timeline[0].kind).toBe('general');
   });
 });

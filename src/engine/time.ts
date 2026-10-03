@@ -4,7 +4,7 @@ import type { Mode, PrescribedExercise, TimelineStep } from './types';
 export const TIME = {
   warmupSet: 40,
   warmupTransition: 45,
-  secPerRep: 5, // tempo 2 s subir / 3 s bajar
+  secPerRep: 6, // cadencia por defecto 2-0-4 (2 s subir / 4 s bajar)
   setPrep: 10,
   transition: 45,
   preExhaustGap: 15,
@@ -19,8 +19,12 @@ export function targetReps(reps: [number, number]): number {
   return Math.ceil((reps[0] + reps[1]) / 2);
 }
 
-export function workSetSeconds(item: Pick<PrescribedExercise, 'reps' | 'technique' | 'techniqueMini'>, isLast: boolean): number {
-  let s = targetReps(item.reps) * TIME.secPerRep + TIME.setPrep;
+export function workSetSeconds(
+  item: Pick<PrescribedExercise, 'reps' | 'technique' | 'techniqueMini'>,
+  isLast: boolean,
+  secPerRep: number = TIME.secPerRep
+): number {
+  let s = targetReps(item.reps) * secPerRep + TIME.setPrep;
   if (isLast && item.technique === 'rest-pause') s += TIME.restPauseMini * (item.techniqueMini ?? 2);
   if (isLast && item.technique === 'negativas') s += TIME.negatives;
   return s;
@@ -45,17 +49,17 @@ function warmupSteps(item: PrescribedExercise): TimelineStep[] {
   return out;
 }
 
-function workSteps(item: PrescribedExercise): TimelineStep[] {
+function workSteps(item: PrescribedExercise, spr: number): TimelineStep[] {
   const out: TimelineStep[] = [];
   for (let s = 0; s < item.workSets; s++) {
     const last = s === item.workSets - 1;
-    out.push({ kind: 'work', uid: item.uid, setIndex: s, seconds: workSetSeconds(item, last), label: `Serie efectiva ${s + 1}` });
+    out.push({ kind: 'work', uid: item.uid, setIndex: s, seconds: workSetSeconds(item, last, spr), label: `Serie efectiva ${s + 1}` });
     if (!last) out.push({ kind: 'rest', uid: item.uid, seconds: item.rest, label: 'Descanso' });
   }
   return out;
 }
 
-function pairSteps(a: PrescribedExercise, b: PrescribedExercise): TimelineStep[] {
+function pairSteps(a: PrescribedExercise, b: PrescribedExercise, spr: number): TimelineStep[] {
   const out: TimelineStep[] = [...warmupSteps(a), ...warmupSteps(b)];
   const seq: { item: PrescribedExercise; set: number }[] = [];
   const rounds = Math.max(a.workSets, b.workSets);
@@ -65,7 +69,7 @@ function pairSteps(a: PrescribedExercise, b: PrescribedExercise): TimelineStep[]
   }
   seq.forEach((cur, i) => {
     const last = cur.set === cur.item.workSets - 1;
-    out.push({ kind: 'work', uid: cur.item.uid, setIndex: cur.set, seconds: workSetSeconds(cur.item, last), label: `Serie efectiva ${cur.set + 1}` });
+    out.push({ kind: 'work', uid: cur.item.uid, setIndex: cur.set, seconds: workSetSeconds(cur.item, last, spr), label: `Serie efectiva ${cur.set + 1}` });
     const nxt = seq[i + 1];
     if (!nxt) return;
     let rest: number;
@@ -78,7 +82,7 @@ function pairSteps(a: PrescribedExercise, b: PrescribedExercise): TimelineStep[]
 }
 
 /** Construye la secuencia completa de la sesión. Su suma es la estimación de tiempo. */
-export function buildTimeline(items: PrescribedExercise[], generalWarmup: number, mode: Mode): TimelineStep[] {
+export function buildTimeline(items: PrescribedExercise[], generalWarmup: number, mode: Mode, secPerRep: number = TIME.secPerRep): TimelineStep[] {
   const steps: TimelineStep[] = [];
   if (generalWarmup > 0) steps.push({ kind: 'general', seconds: generalWarmup, label: 'Calentamiento general' });
   const byUid = new Map(items.map((i) => [i.uid, i]));
@@ -92,10 +96,10 @@ export function buildTimeline(items: PrescribedExercise[], generalWarmup: number
     const partner = item.pairWith ? byUid.get(item.pairWith) : undefined;
     if (partner && !done.has(partner.uid)) {
       done.add(partner.uid);
-      steps.push(...pairSteps(item, partner));
+      steps.push(...pairSteps(item, partner, secPerRep));
       lastUid = partner.uid;
     } else {
-      steps.push(...warmupSteps(item), ...workSteps(item));
+      steps.push(...warmupSteps(item), ...workSteps(item, secPerRep));
     }
     const next = order.slice(idx + 1).find((i) => !done.has(i.uid));
     if (!next) continue;

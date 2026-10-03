@@ -29,9 +29,9 @@ export const RANKS: Rank[] = [
   { id: 'forjado', name: 'Forjado', min: 32000, tagline: 'Leyenda del Heavy Duty.' }
 ];
 
-export function sessionXp(s: Pick<SessionRecord, 'sets' | 'prs' | 'durationSec'>): number {
+export function sessionXp(s: Pick<SessionRecord, 'sets' | 'prs' | 'durationSec' | 'budgetSec'>): number {
   const work = s.sets.filter((x) => x.kind === 'work').length;
-  return work * XP.workSet + s.prs.length * XP.pr + (s.durationSec > 0 && s.durationSec <= 2400 ? XP.under40 : 0);
+  return work * XP.workSet + s.prs.length * XP.pr + (s.durationSec > 0 && s.durationSec <= (s.budgetSec ?? 2400) ? XP.under40 : 0);
 }
 
 export function totalXp(sessions: SessionRecord[]): number {
@@ -80,7 +80,7 @@ export interface Medal {
 export function medals(sessions: SessionRecord[]): Medal[] {
   const work = sessions.reduce((a, s) => a + s.sets.filter((x) => x.kind === 'work').length, 0);
   const prs = sessions.reduce((a, s) => a + s.prs.length, 0);
-  const under = sessions.filter((s) => s.durationSec > 0 && s.durationSec <= 2400).length;
+  const under = sessions.filter((s) => s.durationSec > 0 && s.durationSec <= (s.budgetSec ?? 2400)).length;
   const byWeek = new Map<string, number>();
   for (const s of sessions) {
     const k = weekKey(parseIso(s.date.slice(0, 10)));
@@ -101,7 +101,7 @@ export function medals(sessions: SessionRecord[]): Medal[] {
     m('chispa', 'Primera chispa', 'Completa tu primera sesión', 'spark', sessions.length, 1),
     m('semana', 'Semana completa', '3 sesiones en una misma semana', 'calendar', fullWeeks, 1),
     m('racha4', 'Racha de hierro', '4 semanas seguidas completas', 'flame', streak, 4),
-    m('disciplina', 'Disciplina 40', '10 sesiones en 40:00 o menos', 'timer', under, 10),
+    m('disciplina', 'Disciplina', '10 sesiones dentro de tu tiempo', 'timer', under, 10),
     m('centurion', 'Centurión', '100 series efectivas', 'layers', work, 100),
     m('records', 'Rompe-récords', '10 récords personales', 'trophy', prs, 10),
     m('yunque', 'Yunque', '12 semanas seguidas completas', 'anvil', streak, 12),

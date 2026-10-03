@@ -12,7 +12,7 @@ export const ANTAGONISTS: [Muscle, Muscle][] = [
 
 export const DEFAULT_REST: Record<ExerciseClass, number> = { C1: 150, C2: 120, A: 75, P: 60 };
 
-export const TEMPO = '2-0-3';
+export const TEMPO = '2-0-4';
 
 export function isLower(ex: Exercise): boolean {
   return LOWER_BODY.includes(ex.primary) && !ex.hinge;
@@ -25,7 +25,7 @@ export interface ClassRule {
 }
 
 /** Reglas por clase y modo. HD Adaptado es la referencia (sección 5 del brief). */
-export function classRule(ex: Exercise, mode: Mode, cfg?: Pick<EngineConfig, 'restOverrides'>): ClassRule {
+export function classRule(ex: Exercise, mode: Mode, cfg?: Pick<EngineConfig, 'restOverrides' | 'repRange'>): ClassRule {
   const restBase = cfg?.restOverrides?.[ex.cls] ?? DEFAULT_REST[ex.cls];
   let reps: [number, number];
   let effort: Effort;
@@ -53,6 +53,8 @@ export function classRule(ex: Exercise, mode: Mode, cfg?: Pick<EngineConfig, 're
     if (ex.cls !== 'P') reps = [6, 10];
     effort = 'fallo';
   }
+  // Rango global del usuario (Ajustes). Gemelos y core conservan su rango alto.
+  if (cfg?.repRange && ex.cls !== 'P') reps = [cfg.repRange[0], cfg.repRange[1]];
   return { reps, effort, rest: restBase };
 }
 

@@ -12,7 +12,7 @@ import { DEFAULT_REST } from '@/engine/rules';
 import { spacingWarnings } from '@/engine/validate';
 import type { Equipment, ExerciseClass, Joint, Level, Mode, Muscle } from '@/engine/types';
 import { seedDemo } from '@/lib/demo';
-import { useApp, type Theme } from '@/store/app';
+import { useApp, withDefaults, type Theme } from '@/store/app';
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -25,6 +25,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 export default function Settings() {
   const s = useApp();
+  const st = withDefaults(s.settings);
   const [lines, setLines] = useState<string[]>([]);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -110,6 +111,91 @@ export default function Settings() {
           <div className="mt-4 flex items-center justify-between rounded-xl border border-line px-4 py-3 text-sm">
             <span>Unidades</span>
             <span className="num text-muted">kg</span>
+          </div>
+        </Group>
+
+        <Group title="Tiempo disponible">
+          <Stepper
+            label="Por sesión"
+            unit="minutos"
+            big
+            value={st.sessionMinutes}
+            min={15}
+            max={120}
+            step={5}
+            onChange={(v) => show(s.updateSettings({ sessionMinutes: Math.round(v / 5) * 5 }))}
+          />
+          <div className="mt-3 grid grid-cols-5 gap-1.5">
+            {[30, 40, 45, 60, 90].map((m) => (
+              <button key={m} data-on={st.sessionMinutes === m} className="chip min-h-[44px] justify-center" onClick={() => show(s.updateSettings({ sessionMinutes: m }))}>
+                {m}′
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">El motor ajusta series, calentamientos y descansos para que cada sesión quepa. El día que entrenes puedes elegir otro tiempo sólo para esa sesión.</p>
+        </Group>
+
+        <Group title="Cadencia y reps">
+          <div className="eyebrow mb-2">Cadencia (segundos)</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {(['up', 'pause', 'down'] as const).map((k) => (
+              <Stepper
+                key={k}
+                label={k === 'up' ? 'Subir' : k === 'pause' ? 'Pausa' : 'Bajar'}
+                value={st.cadence[k]}
+                min={k === 'pause' ? 0 : 1}
+                max={8}
+                step={1}
+                onChange={(v) => show(s.updateSettings({ cadence: { ...st.cadence, [k]: Math.round(v) } }))}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Tempo <span className="num text-fg">{st.cadence.up}-{st.cadence.pause}-{st.cadence.down}</span> = {st.cadence.up + st.cadence.pause + st.cadence.down} s por repetición. El metrónomo y el tiempo bajo tensión lo usan.
+          </p>
+          <div className="eyebrow mb-2 mt-5">Rango de repeticiones</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button data-on={st.repRange === null} className="chip min-h-[48px] justify-center" onClick={() => show(s.updateSettings({ repRange: null }))}>
+              Por ejercicio
+            </button>
+            <button data-on={st.repRange !== null} className="chip min-h-[48px] justify-center" onClick={() => show(s.updateSettings({ repRange: st.repRange ?? [6, 10] }))}>
+              Rango global
+            </button>
+          </div>
+          {st.repRange ? (
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Stepper label="Mínimo" value={st.repRange[0]} min={1} max={st.repRange[1]} step={1} onChange={(v) => show(s.updateSettings({ repRange: [Math.round(v), st.repRange![1]] }))} />
+              <Stepper label="Máximo" value={st.repRange[1]} min={st.repRange[0]} max={30} step={1} onChange={(v) => show(s.updateSettings({ repRange: [st.repRange![0], Math.round(v)] }))} />
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-muted">Compuestos 6-10 (pierna 8-12), aislamientos 8-12, gemelos 12-20, core 10-15.</p>
+          )}
+          {st.repRange && <p className="mt-2 text-xs text-muted">Gemelos y core conservan su rango alto.</p>}
+        </Group>
+
+        <Group title="Progresión y discos">
+          <div className="eyebrow mb-2">Incremento al llegar al tope del rango</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Stepper label="Tren superior" unit="kg" value={st.increments.upper} min={0.5} max={10} step={0.5} onChange={(v) => s.updateSettings({ increments: { ...st.increments, upper: v } })} />
+            <Stepper label="Tren inferior" unit="kg" value={st.increments.lower} min={0.5} max={20} step={0.5} onChange={(v) => s.updateSettings({ increments: { ...st.increments, lower: v } })} />
+          </div>
+          <p className="mt-2 text-xs text-muted">Con mancuernas se aplica ~40 % por mancuerna (mínimo 1 kg).</p>
+          <div className="eyebrow mb-2 mt-5">Barra y discos disponibles</div>
+          <Stepper label="Barra" unit="kg" value={st.barKg} min={0} max={30} step={2.5} onChange={(v) => s.updateSettings({ barKg: v })} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[25, 20, 15, 10, 5, 2.5, 1.25, 0.5].map((p) => {
+              const on = st.plates.includes(p);
+              return (
+                <button
+                  key={p}
+                  data-on={on}
+                  className="chip num min-h-[44px] min-w-[56px] justify-center"
+                  onClick={() => s.updateSettings({ plates: on ? st.plates.filter((x) => x !== p) : [...st.plates, p].sort((a, b) => b - a) })}
+                >
+                  {p}
+                </button>
+              );
+            })}
           </div>
         </Group>
 

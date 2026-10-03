@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion';
-import { Check, ChevronLeft, ChevronRight, Info, Metronome, Scissors, ShieldAlert, SkipForward, Trophy, X } from 'lucide-react';
+import { Calculator, Check, ChevronLeft, ChevronRight, Info, Replace, Scissors, ShieldAlert, SkipForward, Trophy, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Shockwave, Sparks } from '@/components/Fx';
@@ -11,7 +11,11 @@ import { Stepper } from '@/components/ui/Stepper';
 import { getExercise } from '@/data/exercises';
 import { MUSCLES } from '@/data/labels';
 import { db, type SessionRecord } from '@/db';
-import { bestE1rm, detectPRs, epley, loadStep, roundLoad, suggestLoad, warmupLoad, type ExerciseSession, type LoggedSet, type PR } from '@/engine/progression';
+import { bestE1rm, dayGoal, detectPRs, epley, loadStep, roundLoad, suggestLoad, usesBar, warmupLoad, warmupPlan, type ExerciseSession, type LoggedSet, type PR } from '@/engine/progression';
+import { classRule, softenEffort } from '@/engine/rules';
+import { ExercisePicker } from '@/components/ExercisePicker';
+import { PlateStack, ToolsSheet } from '@/components/Calculators';
+import { FailToggle, PrevGoal, TechniqueChips, TempoPanel, WarmupLadder, useTempo } from '@/components/workout/SetControls';
 import type { Effort, Muscle } from '@/engine/types';
 import { useNow } from '@/hooks/useNow';
 import { useSessions } from '@/hooks/useSessions';
@@ -20,7 +24,7 @@ import { anvil, beep, vibrate } from '@/lib/feedback';
 import { kg as fmtKg, int, mmss } from '@/lib/format';
 import { rankFor, totalXp } from '@/lib/rank';
 import { RankBadge } from '@/components/Rank';
-import { useApp } from '@/store/app';
+import { useApp, withDefaults } from '@/store/app';
 import { useLive, type LiveItem, type LiveTask } from '@/store/live';
 
 interface PostFail {
@@ -29,12 +33,6 @@ interface PostFail {
   /** Rest-pause en curso: fin de la pausa de 15 s y mini-series hechas */
   rp?: { endsAt: number | null; done: number };
 }
-
-const EFFORTS: { value: Effort; label: string }[] = [
-  { value: 'fallo', label: 'Fallo' },
-  { value: '1 RIR', label: '1 RIR' },
-  { value: '2 RIR', label: '2+' }
-];
 
 function historyFor(sessions: SessionRecord[] | undefined, exerciseId: string): ExerciseSession[] {
   return (sessions ?? [])
@@ -45,7 +43,8 @@ function historyFor(sessions: SessionRecord[] | undefined, exerciseId: string): 
 export default function Workout() {
   const live = useLive();
   const sessions = useSessions();
-  const settings = useApp((s) => s.settings);
+  const settings = withDefaults(useApp((s) => s.settings));
+  const routineUpdate = useApp((s) => s.updateRoutine);
   const loads = useApp((s) => s.loads);
   const navigate = useNavigate();
   const finished = live.endedAt != null;
@@ -55,6 +54,10 @@ export default function Workout() {
   const [spark, setSpark] = useState(0);
   const [postFail, setPostFail] = useState<PostFail | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [swapUndo, setSwapUndo] = useState<{ uid: string; from: string; to: string } | null>(null);
+  const [techs, setTechs] = useState<string[]>([]);
 
   useWakeLock(live.active && !finished);
 
@@ -92,26 +95,21 @@ export default function Workout() {
     }
   }, [restLeft, live.restEndsAt, live.restTotal, settings.sound, settings.vibration]);
 
-  // ───── metrónomo de tempo (2 s sube / 3 s baja) ─────
-  const [metro, setMetro] = useState(settings.metronome);
-  const [phase, setPhase] = useState(0);
-  useEffect(() => {
-    if (!metro || resting || done || !task) return;
-    let t = 0;
-    const id = setInterval(() => {
-      t = (t + 1) % 5;
-      setPhase(t);
-      if (settings.sound) beep(t === 0 ? 1200 : t === 2 ? 700 : 950, 40, t === 0 || t === 2 ? 0.16 : 0.07, 'sine');
-    }, 1000);
-    return () => clearInterval(id);
-  }, [metro, resting, done, task, settings.sound]);
+  // ───── cadencia configurable + tiempo bajo tensión ─────
+  const tempo = useTempo(settings.cadence, { sound: settings.sound, vibration: settings.vibration });
 
   // ───── valores de la serie actual ─────
   const suggestion = useMemo(() => {
     if (!item || !ex) return undefined;
     const hist = historyFor(sessions, ex.id);
-    return suggestLoad(ex, item.reps, item.effort, hist.at(-1), loads[ex.id]);
-  }, [item, ex, sessions, loads]);
+    return suggestLoad(ex, item.reps, item.effort, hist.at(-1), loads[ex.id], settings.increments);
+  }, [item, ex, sessions, loads, settings.increments]);
+
+  const lastSession = useMemo(() => (ex ? historyFor(sessions, ex.id).at(-1) : undefined), [ex, sessions]);
+  const goal = useMemo(
+    () => (item && ex ? dayGoal(ex, item.reps, item.effort, lastSession, loads[ex.id], settings.increments) : undefined),
+    [item, ex, lastSession, loads, settings.increments]
+  );
 
   const workKg = useMemo(() => {
     if (!item || !ex) return 0;
@@ -133,18 +131,31 @@ export default function Workout() {
     } else {
       const prevLog = live.logs.filter((l) => l.exerciseId === ex.id && l.kind === 'work').at(-1);
       setKg(workKg);
-      setReps(prevLog ? prevLog.reps : Math.ceil((item.reps[0] + item.reps[1]) / 2));
+      setReps(prevLog ? prevLog.reps : goal && goal.action !== 'calibrar' ? goal.reps : Math.ceil((item.reps[0] + item.reps[1]) / 2));
       setEffort(item.effort === '3 RIR' ? '2 RIR' : item.effort);
     }
+    setTechs([]);
+    if (tempo.running) tempo.stop();
+    // workKg cambia cuando termina de cargar el historial: re-sugerir la carga
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task?.id]);
+  }, [task?.id, workKg]);
 
   if (!live.active) return <Navigate to="/" replace />;
 
   const onDone = () => {
     if (!task || !item || !ex) return;
     setPostFail(null);
-    const set: LoggedSet = { exerciseId: ex.id, kind: task.kind, kg: kgVal, reps: repsVal, effort: task.kind === 'warmup' ? '3 RIR' : effort };
+    const measured = tempo.running ? tempo.stop() : 0;
+    const cad = settings.cadence.up + settings.cadence.pause + settings.cadence.down;
+    const set: LoggedSet = {
+      exerciseId: ex.id,
+      kind: task.kind,
+      kg: kgVal,
+      reps: repsVal,
+      effort: task.kind === 'warmup' ? '3 RIR' : effort,
+      technique: task.kind === 'work' && techs.length ? techs.join(', ') : undefined,
+      tut: task.kind === 'work' ? measured || repsVal * cad : undefined
+    };
     // ¿PR en vivo?
     if (task.kind === 'work') {
       const hist = historyFor(sessions, ex.id).flatMap((h) => h.sets);
@@ -159,9 +170,9 @@ export default function Workout() {
     if (settings.sound) anvil();
     if (settings.vibration) vibrate(task.kind === 'work' ? [40, 30, 70] : 30);
     live.log(set);
-    if (task.kind === 'work' && effort === 'fallo' && ex.safeFailure && !live.conservative && !live.deload) {
-      const isLastSet = task.setIndex === item.workSets - 1;
-      if (isLastSet) setPostFail({ techniques: ['rest-pause', 'negativas', 'forzadas', 'drop set'], suggested: item.technique });
+    // Rest-pause marcado: cuenta de 15 s y mini-series al fallo
+    if (task.kind === 'work' && techs.includes('rest-pause')) {
+      setPostFail({ techniques: [], rp: { endsAt: Date.now() + 15000, done: 0 } });
     }
   };
 
@@ -190,18 +201,19 @@ export default function Workout() {
   const exTotal = new Set(live.tasks.map((t) => t.uid)).size;
   const warmIdx = task?.kind === 'warmup' ? task.setIndex : -1;
   const progress = live.index / Math.max(1, live.tasks.length);
-  const remaining40 = 2400 - elapsed;
+  const budget = live.budget || 2400;
+  const remaining = budget - elapsed;
 
   return (
-    <div className="relative mx-auto flex min-h-dvh max-w-xl flex-col px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-[max(env(safe-area-inset-top),12px)]">
+    <div className="relative mx-auto flex min-h-dvh max-w-xl flex-col px-4 pt-[max(env(safe-area-inset-top),12px)]">
       {/* ───── Barra superior: reloj global ───── */}
       <header className="flex items-center gap-3">
         <button onClick={() => setExitOpen(true)} className="grid h-12 w-12 place-items-center rounded-full border border-line text-muted" aria-label="Salir de la sesión">
           <X size={20} />
         </button>
         <div className="min-w-0 flex-1 text-center">
-          <div className={`num text-[34px] font-semibold leading-none tracking-tight ${remaining40 < 0 ? 'text-ember' : ''}`} aria-label="Tiempo restante de 40 minutos">
-            {mmss(remaining40)}
+          <div className={`num text-[34px] font-semibold leading-none tracking-tight ${remaining < 0 ? 'text-ember' : ''}`} aria-label={`Tiempo restante de ${Math.round(budget / 60)} minutos`}>
+            {mmss(remaining)}
           </div>
           <div className="mt-1 flex items-center justify-center gap-2 text-[11px]">
             <span className="text-muted">transcurrido {mmss(elapsed)}</span>
@@ -214,13 +226,8 @@ export default function Workout() {
             </span>
           </div>
         </div>
-        <button
-          onClick={() => setMetro((m) => !m)}
-          aria-pressed={metro}
-          className={`grid h-12 w-12 place-items-center rounded-full border ${metro ? 'border-ember text-ember' : 'border-line text-muted'}`}
-          aria-label="Metrónomo de tempo"
-        >
-          <Metronome size={20} />
+        <button onClick={() => setToolsOpen(true)} className="press grid h-12 w-12 place-items-center rounded-full border border-line text-muted" aria-label="Calculadoras de discos y calentamiento">
+          <Calculator size={20} />
         </button>
       </header>
       <div className="mt-3 h-1 overflow-hidden rounded-full bg-raised">
@@ -228,7 +235,7 @@ export default function Workout() {
       </div>
 
       <AnimatePresence>
-        {behind > 120 && projectedEnd > 2400 && (
+        {behind > 120 && projectedEnd > budget && (
           <motion.button
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -242,7 +249,7 @@ export default function Workout() {
           >
             <Scissors size={18} className="shrink-0 text-ember" />
             <span className="flex-1">
-              Vas <span className="num font-semibold">{mmss(behind)}</span> atrasado. Toca para recortar y terminar en 40.
+              Vas <span className="num font-semibold">{mmss(behind)}</span> atrasado. Toca para recortar y terminar a tiempo.
             </span>
           </motion.button>
         )}
@@ -296,6 +303,9 @@ export default function Workout() {
                     {item.pairWith && ' · en par'}
                   </span>
                   <span className="flex gap-1">
+                    <button onClick={() => setSwapOpen(true)} className="press inline-flex h-9 items-center gap-1 rounded-md border border-line px-2.5 text-xs text-muted" aria-label={`Sustituir ${ex.name}`}>
+                      <Replace size={14} aria-hidden /> Sustituir
+                    </button>
                     <button onClick={() => gotoExercise(-1)} className="grid h-9 w-9 place-items-center rounded-full text-muted" aria-label="Ejercicio anterior">
                       <ChevronLeft size={18} />
                     </button>
@@ -316,12 +326,12 @@ export default function Workout() {
                 )}
                 <SetDots item={item} task={task} logs={live.logs} tasks={live.tasks} />
                 {task.kind === 'warmup' ? (
-                  <div className="mt-3 rounded-lg border border-dashed border-line2 px-3 py-2 text-sm">
-                    <span className="font-display text-base font-bold uppercase tracking-wide text-muted">Calentamiento {warmIdx + 1}/{item.warmups.length}</span>
-                    <span className="ml-2">
-                      {item.warmups[warmIdx]?.pct}% × {item.warmups[warmIdx]?.reps} · sin fatiga
+                  <div className="mt-3">
+                    <span className="font-display text-base font-bold uppercase tracking-wide text-muted">
+                      Calentamiento {warmIdx + 1}/{item.warmups.length} · sin fatiga
                     </span>
-                    {workKg === 0 && <div className="mt-1 text-xs text-muted">Sin carga de referencia todavía: usa un peso cómodo; la primera serie efectiva calibra el resto.</div>}
+                    <WarmupLadder steps={warmupPlan(ex, workKg, item.warmups)} current={warmIdx} workKg={workKg} />
+                    {workKg === 0 && <div className="mt-1.5 text-xs text-muted">Sin carga de referencia todavía: usa un peso cómodo; la primera serie efectiva calibra el resto.</div>}
                   </div>
                 ) : (
                   <div className="mt-3 text-[15px]">
@@ -337,11 +347,12 @@ export default function Workout() {
                     {item.technique === 'pre-agotamiento' && <span className="text-ember"> · pre-agotamiento: 15 s al siguiente</span>}
                   </div>
                 )}
-                {task.kind === 'work' && suggestion && (
-                  <div className="mt-2 text-xs text-muted">
-                    {suggestion.action === 'calibrar' ? 'Primera vez: elige una carga que te deje en el rango' : `${suggestion.text}`}
-                    {live.deload && ' · descarga −10 %'}
-                  </div>
+                {task.kind === 'work' && goal && (
+                  <PrevGoal
+                    goal={live.deload ? { ...goal, goalText: `${goal.goalText} · descarga −10 %` } : goal}
+                    prevSets={lastSession?.sets.filter((x) => x.kind === 'work') ?? []}
+                    current={task.setIndex}
+                  />
                 )}
                 {task.kind === 'work' && !ex.safeFailure && (
                   <div className="mt-3 flex items-center gap-2 text-xs text-warn">
@@ -360,39 +371,27 @@ export default function Workout() {
                 </details>
               </motion.div>
 
-              {metro && (
-                <div className="mt-3 grid grid-cols-5 gap-1" aria-hidden>
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <span key={i} className={`h-2 rounded-full transition-colors ${i === phase ? 'bg-ember' : i < 2 ? 'bg-line2' : 'bg-line'}`} />
-                  ))}
-                  <span className="col-span-2 text-center text-[10px] text-muted">SUBE 2</span>
-                  <span className="col-span-3 text-center text-[10px] text-muted">BAJA 3</span>
-                </div>
-              )}
+              {task.kind === 'work' && <TempoPanel tempo={tempo} cadence={settings.cadence} />}
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Stepper label="Carga" unit="kg" value={kgVal} onChange={setKg} step={loadStep(ex)} big format={fmtKg} />
+                <div>
+                  <Stepper label="Carga" unit="kg" value={kgVal} onChange={setKg} step={loadStep(ex)} big format={fmtKg} />
+                  {usesBar(ex) && kgVal > 0 && (
+                    <button onClick={() => setToolsOpen(true)} className="mt-1 block w-full text-center">
+                      <PlateStack total={kgVal} compact />
+                    </button>
+                  )}
+                </div>
                 <Stepper label="Reps" value={repsVal} onChange={setReps} step={1} min={0} max={50} big />
               </div>
               {task.kind === 'work' && (
-                <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Esfuerzo">
-                  {EFFORTS.map((e) => (
-                    <button
-                      key={e.value}
-                      role="radio"
-                      aria-checked={effort === e.value}
-                      onClick={() => setEffort(e.value)}
-                      className={`min-h-[48px] rounded-xl border font-display text-lg font-bold uppercase tracking-wide ${
-                        effort === e.value ? 'border-ember bg-ember/15 text-fg' : 'border-line text-muted'
-                      }`}
-                    >
-                      {e.label}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <FailToggle effort={effort} onChange={setEffort} />
+                  <TechniqueChips value={techs} onChange={setTechs} suggested={task.setIndex === item.workSets - 1 ? item.technique : undefined} />
+                </>
               )}
 
-              <div className="mt-auto pt-5">
+              <div className="sticky bottom-0 z-20 -mx-4 mt-auto bg-gradient-to-t from-bg via-bg/95 to-bg/0 px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-6">
                 <div className="relative" style={{ filter: 'drop-shadow(0 10px 28px rgb(var(--ember) / 0.35))' }}>
                   <Shockwave trigger={shock} />
                   <Sparks trigger={spark} />
@@ -406,7 +405,7 @@ export default function Workout() {
                     <span className={task.kind === 'warmup' ? 'text-2xl' : 'text-[34px] tracking-[0.06em]'}>{task.kind === 'warmup' ? 'Calentamiento hecho' : 'Serie hecha'}</span>
                   </motion.button>
                 </div>
-                <p className="mt-2 text-center text-[11px] text-muted">Desliza la tarjeta para cambiar de ejercicio</p>
+                <p className="mt-1.5 text-center text-[11px] text-muted">Desliza la tarjeta para cambiar de ejercicio</p>
               </div>
             </motion.section>
           ) : null}
@@ -431,6 +430,61 @@ export default function Workout() {
             role="status"
           >
             <Trophy size={16} className="shrink-0 text-ember" /> {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ToolsSheet open={toolsOpen} onClose={() => setToolsOpen(false)} initialKg={kgVal || workKg} />
+
+      {item && ex && (
+        <ExercisePicker
+          open={swapOpen}
+          onClose={() => setSwapOpen(false)}
+          title="Sustituir ejercicio"
+          initialMuscle={ex.primary}
+          currentId={ex.id}
+          exclude={live.items.map((i) => i.exerciseId)}
+          onSelect={(id) => {
+            const nx = getExercise(id);
+            const rule = classRule(nx, settings.mode, { restOverrides: settings.restOverrides, repRange: settings.repRange });
+            live.swapExercise(item.uid, {
+              exerciseId: id,
+              reps: rule.reps,
+              effort: live.conservative ? softenEffort(rule.effort) : rule.effort,
+              rest: rule.rest,
+              technique: undefined
+            });
+            setSwapOpen(false);
+            setToast(`Hoy: ${nx.name} en lugar de ${ex.name}`);
+            setSwapUndo({ uid: item.uid, from: ex.id, to: id });
+            setTimeout(() => setToast(null), 3500);
+          }}
+        />
+      )}
+
+      <AnimatePresence>
+        {swapUndo && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-md items-center gap-3 rounded-md border border-line bg-surface px-4 py-3 text-sm shadow-2xl"
+          >
+            <span className="flex-1">¿Guardar el cambio también en tu rutina?</span>
+            <button
+              className="press min-h-[44px] rounded-md bg-ember px-3 font-display font-bold uppercase text-onember"
+              onClick={() => {
+                routineUpdate((r) => ({
+                  days: r.days.map((d) => ({ ...d, slots: d.slots.map((sl) => (sl.uid === swapUndo.uid ? { ...sl, exerciseId: swapUndo.to, lockedSets: undefined } : sl)) }))
+                }));
+                setSwapUndo(null);
+              }}
+            >
+              Guardar
+            </button>
+            <button className="press min-h-[44px] px-2 text-muted" onClick={() => setSwapUndo(null)} aria-label="Sólo hoy">
+              Sólo hoy
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -546,7 +600,7 @@ function RestView({
             className="card mb-5 w-full p-4"
           >
             <div className="flex items-center justify-between">
-              <span className="eyebrow text-ember">Post-fallo · opcional</span>
+              <span className="eyebrow text-ember">{postFail.rp ? 'Rest-pause · 15 s' : 'Post-fallo · opcional'}</span>
               <button onClick={onDismissPost} className="text-xs text-muted">
                 No, gracias
               </button>
@@ -621,6 +675,8 @@ function Summary({ onExit }: { onExit: () => void }) {
   const mode = useApp((s) => s.settings.mode);
   const [saved, setSaved] = useState(false);
   const [spark, setSpark] = useState(0);
+  const [notes, setNotes] = useState('');
+  const budget = live.budget || 2400;
   useEffect(() => {
     if (live.endedAt == null) live.finish();
   }, [live]);
@@ -647,7 +703,7 @@ function Summary({ onExit }: { onExit: () => void }) {
   // ───── XP y rango ─────
   const xpBefore = useMemo(() => totalXp(sessions ?? []), [sessions]);
   const xpAfter = useMemo(() => {
-    const fake = { date: new Date(live.startedAt).toISOString(), sets: work, prs, durationSec: duration } as unknown as SessionRecord;
+    const fake = { date: new Date(live.startedAt).toISOString(), sets: work, prs, durationSec: duration, budgetSec: budget } as unknown as SessionRecord;
     return totalXp([...(sessions ?? []), fake]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, prs, duration]);
@@ -678,13 +734,15 @@ function Summary({ onExit }: { onExit: () => void }) {
       sets: live.logs.map(({ exerciseId, kind, kg, reps, effort, technique }) => ({ exerciseId, kind, kg, reps, effort, technique })),
       prs,
       volumeKg: volume,
-      muscles
+      muscles,
+      budgetSec: budget,
+      notes: notes.trim() || undefined
     });
     live.abort();
     onExit();
   };
 
-  const under = duration <= 2400;
+  const under = duration <= budget;
   return (
     <motion.div
       initial="hidden"
@@ -725,10 +783,10 @@ function Summary({ onExit }: { onExit: () => void }) {
       </motion.div>
 
       <motion.div variants={rise} className="card mt-4 flex items-center gap-5 p-5">
-        <Ring value={duration / 2400} size={132} stroke={10} tone={under ? 'ember' : 'warn'} label={`Duración ${mmss(duration)} de 40 minutos`}>
+        <Ring value={duration / budget} size={132} stroke={10} tone={under ? 'ember' : 'warn'} label={`Duración ${mmss(duration)} de ${Math.round(budget / 60)} minutos`}>
           <div className="text-center leading-none">
             <div className="num text-3xl font-semibold">{mmss(duration)}</div>
-            <div className="eyebrow mt-1 !text-[10px]">de 40:00</div>
+            <div className="eyebrow mt-1 !text-[10px]">de {mmss(budget)}</div>
           </div>
         </Ring>
         <div className="grid flex-1 gap-3">
@@ -774,6 +832,17 @@ function Summary({ onExit }: { onExit: () => void }) {
           Recortado en vivo: {live.trimNotes.join(', ')}.
         </motion.p>
       )}
+
+      <motion.label variants={rise} className="mt-4 block">
+        <span className="eyebrow mb-1.5 block">Nota de la sesión (opcional)</span>
+        <textarea
+          className="field min-h-[88px] resize-none py-3"
+          placeholder="Ej.: dormí mal, molestia leve en hombro izquierdo, gran bomba en pecho…"
+          value={notes}
+          maxLength={500}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </motion.label>
 
       <motion.div variants={rise} className="mt-6 grid gap-2">
         <button className="btn-ember min-h-[60px] text-xl" onClick={save} disabled={saved}>

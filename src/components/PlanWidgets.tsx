@@ -6,7 +6,7 @@ import { SMALL } from '@/engine/rules';
 import type { Muscle, MuscleVolume, PrescribedDay, Warning } from '@/engine/types';
 import { mmss } from '@/lib/format';
 
-/** Barra de presupuesto de 40 min con marcas 36/38/40. */
+/** Barra de tiempo disponible con marcas en −4, −2 y el tope. */
 export function TimeBar({ seconds, budget = 2400 }: { seconds: number; budget?: number }) {
   const reduce = useReducedMotion();
   const max = budget * 1.1;
@@ -17,7 +17,7 @@ export function TimeBar({ seconds, budget = 2400 }: { seconds: number; budget?: 
       <div className="mb-1.5 flex items-baseline justify-between">
         <span className="eyebrow">Tiempo estimado</span>
         <span className={`num text-sm font-semibold ${over ? 'text-ember' : 'text-fg'}`}>
-          {mmss(seconds)} <span className="text-muted">/ 40:00</span>
+          {mmss(seconds)} <span className="text-muted">/ {mmss(budget)}</span>
         </span>
       </div>
       <div className="relative h-3 overflow-hidden rounded-full bg-raised">
@@ -27,13 +27,13 @@ export function TimeBar({ seconds, budget = 2400 }: { seconds: number; budget?: 
           animate={{ width: `${pct * 100}%` }}
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 90, damping: 18 }}
         />
-        {[2160, 2280, 2400].map((m) => (
-          <span key={m} className={`absolute inset-y-0 w-px ${m === 2400 ? 'bg-fg/80' : 'bg-fg/25'}`} style={{ left: `${(m / max) * 100}%` }} />
+        {[budget - 240, budget - 120, budget].map((m) => (
+          <span key={m} className={`absolute inset-y-0 w-px ${m === budget ? 'bg-fg/80' : 'bg-fg/25'}`} style={{ left: `${(m / max) * 100}%` }} />
         ))}
       </div>
       <div className="relative mt-1 h-3 text-[10px] text-muted">
-        <span className="num absolute -translate-x-1/2" style={{ left: `${(2160 / max) * 100}%` }}>36</span>
-        <span className="num absolute -translate-x-1/2" style={{ left: `${(2400 / max) * 100}%` }}>40</span>
+        <span className="num absolute -translate-x-1/2" style={{ left: `${((budget - 240) / max) * 100}%` }}>{Math.round(budget / 60) - 4}</span>
+        <span className="num absolute -translate-x-1/2" style={{ left: `${(budget / max) * 100}%` }}>{Math.round(budget / 60)}</span>
       </div>
     </div>
   );

@@ -29,14 +29,14 @@ export function computePlan(routine: Routine, profile: Profile, config: EngineCo
   }
   const days = runPass(weekly1);
   const { weekly, coverage, warnings } = validatePlan(days, config);
-  return { mode: config.mode, days, weekly, coverage, warnings };
+  return { mode: config.mode, budget: config.budget, days, weekly, coverage, warnings };
 }
 
 // ───────────────────────── Diff explicado ─────────────────────────
 
-function mins(sec: number): string {
+function mins(sec: number, budget = 2400): string {
   const m = sec / 60;
-  if (sec > 2400 && Math.round(m) <= 40) return `${Math.floor(m)}:${String(Math.round(sec % 60)).padStart(2, '0')} min`;
+  if (sec > budget && Math.round(m) <= budget / 60) return `${Math.floor(m)}:${String(Math.round(sec % 60)).padStart(2, '0')} min`;
   return `${Math.round(m)} min`;
 }
 
@@ -73,14 +73,15 @@ function naiveSeconds(prevDay: PrescribedDay, nextDay: DayPlan, profile: Profile
   };
   const raw = planDay(locked, { profile, config: { ...config, budget: 99999, target: 0 } });
   // Sin relleno ni recortes: sólo las series que ya tenía.
-  return sumSeconds(buildTimeline(raw.items, config.generalWarmup, config.mode));
+  return sumSeconds(buildTimeline(raw.items, config.generalWarmup, config.mode, config.secPerRep));
 }
 
 export function explainDayChange(
   prevDay: PrescribedDay,
   nextDay: PrescribedDay,
   profile: Profile,
-  config: EngineConfig
+  config: EngineConfig,
+  reason: 'edit' | 'budget' = 'edit'
 ): string | null {
   const prevSlots = new Map(prevDay.day.slots.map((s) => [s.uid, s]));
   const nextSlots = new Map(nextDay.day.slots.map((s) => [s.uid, s]));
@@ -141,19 +142,23 @@ export function explainDayChange(
 
   const tail: string[] = [];
   const naive = naiveSeconds(prevDay, nextDay.day, profile, config);
-  if (cuts.length && naive > config.budget) {
-    tail.push(`El día subía a ${mins(naive)}, así que ${cuts.join(', ')}.`);
+  if (reason === 'budget' && cuts.length) {
+    tail.push(`Para caber en ${Math.round(config.budget / 60)} min: ${cuts.join(', ')}.`);
+  } else if (cuts.length && naive > config.budget) {
+    tail.push(`El día subía a ${mins(naive, config.budget)}, así que ${cuts.join(', ')}.`);
   } else if (cuts.length) {
     tail.push(`Para cuadrar ${cuts.join(', ')}.`);
   }
-  if (adds.length) {
+  if (adds.length && reason === 'budget') {
+    tail.push(`Con ${Math.round(config.budget / 60)} min hay espacio: ${adds.join(', ')}.`);
+  } else if (adds.length) {
     tail.push(`${naive < config.target ? `Sobraba tiempo: ${adds.join(', ')}` : adds.join(', ')}.`.replace(/^./, (c) => c.toUpperCase()));
   }
   const timeLine =
     Math.round(prevDay.seconds / 60) !== Math.round(nextDay.seconds / 60)
-      ? `Ahora ${mins(nextDay.seconds)} (antes ${mins(prevDay.seconds)}).`
-      : `Sigue en ${mins(nextDay.seconds)}.`;
-  if (nextDay.overBudget) tail.push(`Aún pasa de 40 min: usa Optimizar.`);
+      ? `Ahora ${mins(nextDay.seconds, config.budget)} (antes ${mins(prevDay.seconds, config.budget)}).`
+      : `Sigue en ${mins(nextDay.seconds, config.budget)}.`;
+  if (nextDay.overBudget) tail.push(`Aún pasa de ${Math.round(config.budget / 60)} min: usa Optimizar.`);
 
   const first = head.length ? `${head.join('. ')}.` : '';
   return [first, ...tail, timeLine].filter(Boolean).join(' ');
@@ -171,11 +176,17 @@ export function explainPlanChange(prev: PlanResult, next: PlanResult, profile: P
     );
     return out;
   }
+  const budgetChanged = prev.budget !== next.budget;
+  if (budgetChanged) out.push(`Tiempo disponible: ${Math.round(prev.budget / 60)} → ${Math.round(next.budget / 60)} min por sesión.`);
   next.days.forEach((nd) => {
     const pd = prev.days.find((d) => d.day.id === nd.day.id);
     if (!pd) return;
-    const line = explainDayChange(pd, nd, profile, config);
+    const line = explainDayChange(pd, nd, profile, config, budgetChanged ? 'budget' : 'edit');
     if (!line) return;
+    if (budgetChanged) {
+      out.push(`${nd.name}: ${line}`);
+      return;
+    }
     const direct = JSON.stringify(pd.day.slots) !== JSON.stringify(nd.day.slots);
     out.push(direct ? line : `${nd.name} (rebalanceo por volumen semanal): ${line.replace(/^Para cuadrar /, '')}`);
   });

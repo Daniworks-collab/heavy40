@@ -16,7 +16,7 @@ import { useSessions } from '@/hooks/useSessions';
 import { addDays, isoDate, parseIso, shortDate, startOfWeek } from '@/lib/dates';
 import { seedDemo } from '@/lib/demo';
 import { kg as fmtKg, mmss } from '@/lib/format';
-import { useApp, usePlan } from '@/store/app';
+import { useApp, useBudget, usePlan } from '@/store/app';
 import { medals, rankFor, totalXp } from '@/lib/rank';
 import { MedalGrid, RankCard } from '@/components/Rank';
 
@@ -24,6 +24,7 @@ export default function Progress() {
   const sessions = useSessions();
   const body = useDexie(() => db.body.orderBy('date').toArray(), []);
   const plan = usePlan();
+  const budget = useBudget();
   const loads = useApp((s) => s.loads);
   const [exId, setExId] = useState<string | null>(null);
   const [muscle, setMuscle] = useState<Muscle>('pecho');
@@ -112,7 +113,7 @@ export default function Progress() {
         <Kpi label="Sesiones" value={sessions.length} />
         {totalVol >= 10000 ? <Kpi label="Volumen total" value={Math.round(totalVol / 100) / 10} decimals={1} suffix="t" /> : <Kpi label="Volumen total" value={Math.round(totalVol)} suffix="kg" />}
         <Kpi label="Récords" value={sessions.reduce((a, s) => a + s.prs.length, 0)} />
-        <Kpi label="Duración media" text={mmss(avgDur)} sub="meta ≤ 40:00" />
+        <Kpi label="Duración media" text={mmss(avgDur)} sub={`meta ≤ ${mmss(budget)}`} />
       </Rise>
 
       <Rise as="section" className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.3fr]">
@@ -249,7 +250,7 @@ export default function Progress() {
               <button className="flex min-h-[56px] w-full items-center gap-3 px-4 text-left" onClick={() => setOpenSession(openSession === s.id ? null : s.id!)} aria-expanded={openSession === s.id}>
                 <span className="num w-14 shrink-0 text-xs text-muted">{shortDate(s.date)}</span>
                 <span className="min-w-0 flex-1 truncate font-medium">{s.dayName}</span>
-                <span className={`num text-xs ${s.durationSec > 2400 ? 'text-ember' : 'text-muted'}`}>{mmss(s.durationSec)}</span>
+                <span className={`num text-xs ${s.durationSec > (s.budgetSec ?? 2400) ? 'text-ember' : 'text-muted'}`}>{mmss(s.durationSec)}</span>
                 <ChevronDown size={16} className={`text-muted transition-transform ${openSession === s.id ? 'rotate-180' : ''}`} />
               </button>
               <AnimatePresence initial={false}>
@@ -262,6 +263,7 @@ export default function Progress() {
                           <span className="num shrink-0">{sets.map((x) => `${fmtKg(x.kg)}×${x.reps}`).join('  ')}</span>
                         </div>
                       ))}
+                      {s.notes && <p className="mt-2 rounded-md border border-line bg-bg/50 px-3 py-2 text-sm italic text-muted">“{s.notes}”</p>}
                       <div className="mt-2 text-xs text-muted">
                         Volumen {Math.round(s.volumeKg)} kg{s.conservative && ' · conservador'}
                         {s.deload && ' · descarga'}

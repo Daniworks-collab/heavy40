@@ -14,7 +14,7 @@ import { CLASS_LABEL, MODE_BLURB, WEEKDAY_LONG } from '@/data/labels';
 import { applyProposal, computePlan } from '@/engine/recalc';
 import type { Mode, PrescribedDay, PrescribedExercise, Slot } from '@/engine/types';
 import { mmss } from '@/lib/format';
-import { engineConfig, useApp, usePlan } from '@/store/app';
+import { engineConfig, useApp, useBudget, usePlan } from '@/store/app';
 
 let uidCounter = 0;
 const newUid = () => `s${Date.now().toString(36)}${(uidCounter++).toString(36)}`;
@@ -32,6 +32,7 @@ export default function Routine() {
   const [optOpen, setOptOpen] = useState(false);
 
   const day = plan.days[dayIdx];
+  const budget = useBudget();
   const dayPlan = routine.days[dayIdx];
   const usedIds = routine.days.flatMap((d) => d.slots.map((s) => s.exerciseId));
 
@@ -122,7 +123,7 @@ export default function Routine() {
                 </motion.button>
               )}
             </div>
-            <TimeBar seconds={day.seconds} />
+            <TimeBar seconds={day.seconds} budget={budget} />
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
               <span>
                 Fatiga <span className={`num ${day.fatigue > 24 ? 'text-ember' : 'text-fg'}`}>{day.fatigue}/24</span>
@@ -369,11 +370,12 @@ function OptimizeSheet({ open, onClose, day, dayIdx }: { open: boolean; onClose:
 }
 
 function DayColumn({ title, day, highlight }: { title: string; day: PrescribedDay; highlight?: string }) {
+  const budget = useBudget();
   return (
     <div className="rounded-xl border border-line p-3">
       <div className="mb-2 flex items-baseline justify-between">
         <span className="font-display text-xl font-bold uppercase">{title}</span>
-        <span className={`num text-sm font-semibold ${day.seconds > 2400 ? 'text-ember' : 'text-ok'}`}>{mmss(day.seconds)}</span>
+        <span className={`num text-sm font-semibold ${day.seconds > budget ? 'text-ember' : 'text-ok'}`}>{mmss(day.seconds)}</span>
       </div>
       <ul className="space-y-1 text-sm">
         {day.items.map((i) => (

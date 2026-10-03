@@ -65,7 +65,7 @@ export const MODE_LABEL: Record<Mode, string> = {
 export const MODE_BLURB: Record<Mode, string> = {
   puro: '1 serie efectiva por ejercicio, siempre al fallo, 6-10 reps. Máxima fidelidad a Mentzer.',
   adaptado: 'Intensidad alta y poco volumen, con ~2 series en ejercicios clave y 2×/semana por músculo. Fallo sólo donde es seguro.',
-  fast40: 'Pares antagonistas para meter más series en 40 min. Una concesión al purismo HD.'
+  fast40: 'Pares antagonistas para meter más series en tu tiempo. Una concesión al purismo HD.'
 };
 
 export const PATTERN_LABEL: Record<Pattern, string> = {

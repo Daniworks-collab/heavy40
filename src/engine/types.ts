@@ -193,6 +193,8 @@ export interface Warning {
 
 export interface PlanResult {
   mode: Mode;
+  /** Tiempo disponible usado (s) */
+  budget: number;
   days: PrescribedDay[];
   weekly: MuscleVolume[];
   /** exposiciones por músculo y día (1 directa, 0.5 indirecta) */
@@ -212,8 +214,16 @@ export interface EngineConfig {
   mode: Mode;
   /** Calentamiento general en segundos (0-300). */
   generalWarmup: number;
-  budget: number; // 2400
-  target: number; // 2280 (38 min)
+  /** Tiempo disponible en segundos (por defecto 2400 = 40 min). */
+  budget: number;
+  /** Objetivo de relleno: budget − 120 s. */
+  target: number;
+  /** Segundos por repetición según cadencia (subida + pausa + bajada). */
+  secPerRep?: number;
+  /** Cadencia mostrada, p. ej. "2-0-4". */
+  tempo?: string;
+  /** Rango global de reps que reemplaza el de cada clase (salvo gemelos/core). */
+  repRange?: [number, number] | null;
   fatigueLimit: number; // 24
   restOverrides?: Partial<Record<ExerciseClass, number>>;
   /** Readiness bajo → modo conservador. */

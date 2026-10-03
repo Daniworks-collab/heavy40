@@ -19,6 +19,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
   generalWarmup: 180,
   budget: 2400,
   target: 2280,
+  secPerRep: 6,
+  tempo: '2-0-4',
+  repRange: null,
   fatigueLimit: 24,
   conservative: false
 };
@@ -123,7 +126,7 @@ function derive(entries: Entry[], ctx: DayContext): PrescribedExercise[] {
       rest,
       technique: tech.technique,
       techniqueMini: tech.mini,
-      tempo: TEMPO,
+      tempo: config.tempo ?? TEMPO,
       priority: priorityFor(ex, isMain, profile.priorities),
       isMain,
       pairWith: pairs.get(e.slot.uid),
@@ -136,7 +139,7 @@ function derive(entries: Entry[], ctx: DayContext): PrescribedExercise[] {
 
 function evaluate(entries: Entry[], ctx: DayContext) {
   const items = derive(entries, ctx);
-  const timeline = buildTimeline(items, ctx.config.generalWarmup, ctx.config.mode);
+  const timeline = buildTimeline(items, ctx.config.generalWarmup, ctx.config.mode, ctx.config.secPerRep);
   const perUid = new Map<string, number>();
   for (const s of timeline) if (s.uid) perUid.set(s.uid, (perUid.get(s.uid) ?? 0) + s.seconds);
   for (const it of items) it.seconds = perUid.get(it.uid) ?? 0;
@@ -239,7 +242,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
   };
   const hasRoom = () => config.budget - state.seconds > config.budget - config.target;
 
-  // 2. Relleno hasta 38-40 min
+  // 2. Relleno hasta el objetivo (presupuesto − 2 min)
   const steps: ((max: number) => Entry[])[] = [
     // (1) compuesto principal de cada músculo grande
     () => included().filter((e) => itemOf(e)?.isMain && BIG.includes(e.ex.primary)),
@@ -303,7 +306,7 @@ export function planDay(day: DayPlan, ctx: DayContext): PrescribedDay {
     if (mode !== 'puro' && included().length <= 4) fillPass(3, [0, 1, 2]);
   }
 
-  // 3. Recortes si se pasa de 40 min
+  // 3. Recortes si se pasa del presupuesto
   const byLowPriority = (list: Entry[]) =>
     [...list].sort((a, b) => (itemOf(a)?.priority ?? 0) - (itemOf(b)?.priority ?? 0) || entries.indexOf(b) - entries.indexOf(a));
 

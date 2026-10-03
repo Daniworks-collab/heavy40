@@ -54,7 +54,7 @@ const SCIENCE = [
 
 const FAQ = [
   ['¿Por qué no voy al fallo en press banca o sentadilla?', 'Porque en compuestos libres el fallo sube mucho la fatiga y el riesgo sin aportar más crecimiento que quedarte a 1 repetición. Si tienes seguros bien puestos o un ayudante, puedes hacerlo en la última serie.'],
-  ['¿Por qué sólo 40 minutos?', 'Es el formato que elegiste. La app protege ese límite: si el día se pasa, recorta en orden (calentamientos secundarios, descansos de aislamiento, series extra) y te avisa. Nunca recorta en silencio.'],
+  ['¿Por qué sesiones de 40 minutos?', 'Es el formato por defecto y lo puedes cambiar en Ajustes o el día que entrenes. La app protege tu límite de tiempo: si el día se pasa, recorta en orden (calentamientos secundarios, descansos de aislamiento, series extra) y te avisa. Nunca recorta en silencio.'],
   ['¿Es suficiente volumen?', 'Es moderado. Con 3 sesiones de 40 min sueles llegar a ~6-8 series directas por músculo grande. Funciona, sobre todo si progresas la carga, pero no es el máximo posible. El panel de volumen te lo muestra con honestidad.'],
   ['¿Qué modo elijo?', 'HD Adaptado si no sabes: mantiene la intensidad de Heavy Duty con lo que la evidencia actual sugiere. HD Puro si quieres la experiencia Mentzer. Fast-40 si quieres meter más series a cambio de menos descanso.'],
   ['Me estanqué, ¿entreno más?', 'En Heavy Duty la respuesta suele ser lo contrario: revisa sueño y proteína, añade un día de descanso, o haz una semana de descarga antes de cambiar el ejercicio.'],

@@ -18,6 +18,17 @@ export interface Settings {
   metronome: boolean;
   theme: Theme;
   fatigueLimit: number;
+  /** Tiempo disponible por sesión (min). */
+  sessionMinutes: number;
+  /** Cadencia en segundos: subida, pausa, bajada. */
+  cadence: { up: number; pause: number; down: number };
+  /** Rango global de reps; null = rango por tipo de ejercicio. */
+  repRange: [number, number] | null;
+  /** Incremento de carga para la doble progresión (kg). */
+  increments: { upper: number; lower: number };
+  /** Calculadora de discos */
+  barKg: number;
+  plates: number[];
 }
 
 export interface ChangeEntry {
@@ -44,7 +55,7 @@ interface AppState {
   water: Record<string, number>;
   sleepGoal: number;
 
-  completeOnboarding: (p: { profile: Profile; mode: Mode; weekdays: number[]; loads: Record<string, number> }) => void;
+  completeOnboarding: (p: { profile: Profile; mode: Mode; weekdays: number[]; loads: Record<string, number>; sessionMinutes?: number }) => void;
   updateRoutine: (fn: (r: Routine) => Routine) => string[];
   setMode: (m: Mode) => string[];
   setProfile: (p: Partial<Profile>) => string[];
@@ -70,18 +81,45 @@ export const DEFAULT_SETTINGS: Settings = {
   vibration: true,
   metronome: false,
   theme: 'forja',
-  fatigueLimit: 24
+  fatigueLimit: 24,
+  sessionMinutes: 40,
+  cadence: { up: 2, pause: 0, down: 4 },
+  repRange: null,
+  increments: { upper: 2.5, lower: 5 },
+  barKg: 20,
+  plates: [25, 20, 15, 10, 5, 2.5, 1.25]
 };
 
-export function engineConfig(settings: Settings, extra: Partial<EngineConfig> = {}): EngineConfig {
+/** Ajustes guardados por versiones anteriores pueden no tener los campos nuevos. */
+export function withDefaults(s: Partial<Settings>): Settings {
+  return { ...DEFAULT_SETTINGS, ...s };
+}
+
+export function cadenceSeconds(c: Settings['cadence']): number {
+  return c.up + c.pause + c.down;
+}
+
+export function engineConfig(raw: Settings, extra: Partial<EngineConfig> = {}): EngineConfig {
+  const settings = withDefaults(raw);
+  const budget = Math.round(settings.sessionMinutes * 60);
   return {
     ...DEFAULT_CONFIG,
     mode: settings.mode,
     generalWarmup: settings.generalWarmup,
     restOverrides: settings.restOverrides,
     fatigueLimit: settings.fatigueLimit,
+    budget,
+    target: budget - 120,
+    secPerRep: cadenceSeconds(settings.cadence),
+    tempo: `${settings.cadence.up}-${settings.cadence.pause}-${settings.cadence.down}`,
+    repRange: settings.repRange,
     ...extra
   };
+}
+
+/** Segundos de presupuesto con el tiempo disponible configurado. */
+export function useBudget(): number {
+  return useApp((s) => Math.round(withDefaults(s.settings).sessionMinutes * 60));
 }
 
 const initial = () => ({
@@ -121,14 +159,14 @@ export const useApp = create<AppState>()(
       };
       return {
         ...initial(),
-        completeOnboarding: ({ profile, mode, weekdays, loads }) => {
+        completeOnboarding: ({ profile, mode, weekdays, loads, sessionMinutes }) => {
           const routine = defaultRoutine(weekdays);
           set({
             onboarded: true,
             fitnessAck: true,
             profile,
             routine,
-            settings: { ...get().settings, mode },
+            settings: { ...withDefaults(get().settings), mode, sessionMinutes: sessionMinutes ?? 40 },
             loads,
             programStart: isoDate(),
             changes: []
@@ -138,7 +176,7 @@ export const useApp = create<AppState>()(
         setMode: (mode) => commit({ settings: { ...get().settings, mode } }),
         setProfile: (p) => commit({ profile: { ...get().profile, ...p } }),
         updateSettings: (p) => {
-          const affectsPlan = ['mode', 'generalWarmup', 'restOverrides', 'fatigueLimit'].some((k) => k in p);
+          const affectsPlan = ['mode', 'generalWarmup', 'restOverrides', 'fatigueLimit', 'sessionMinutes', 'cadence', 'repRange'].some((k) => k in p);
           if (affectsPlan) return commit({ settings: { ...get().settings, ...p } });
           set({ settings: { ...get().settings, ...p } });
           return [];
@@ -176,7 +214,12 @@ export const useApp = create<AppState>()(
     },
     {
       name: 'heavy40-app',
-      version: 1,
+      version: 2,
+      migrate: (persisted, version) => {
+        const st = persisted as Partial<AppState>;
+        if (version < 2 && st.settings) st.settings = withDefaults(st.settings);
+        return st as AppState;
+      },
       partialize: (s) => ({
         onboarded: s.onboarded,
         fitnessAck: s.fitnessAck,

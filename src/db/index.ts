@@ -18,6 +18,10 @@ export interface SessionRecord {
   prs: PR[];
   volumeKg: number;
   muscles: Partial<Record<Muscle, number>>;
+  /** Tiempo disponible que tenía la sesión (s). */
+  budgetSec?: number;
+  /** Nota libre de la sesión */
+  notes?: string;
 }
 
 export interface BodyRecord {

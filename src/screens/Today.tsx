@@ -10,7 +10,8 @@ import { Ring } from '@/components/ui/Ring';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { db, useLive as useDexie } from '@/db';
 import { CLASS_LABEL, MODE_LABEL, WEEKDAY_LONG, WEEKDAY_SHORT } from '@/data/labels';
-import { deloadDue } from '@/engine/progression';
+import { deloadDue, isStalled } from '@/engine/progression';
+import { getExercise } from '@/data/exercises';
 import type { PrescribedDay } from '@/engine/types';
 import { useMedia } from '@/hooks/useMedia';
 import { useNow } from '@/hooks/useNow';
@@ -19,7 +20,7 @@ import { useStartWorkout } from '@/hooks/useStartWorkout';
 import { addDays, isoDate, parseIso, shortDate, startOfWeek } from '@/lib/dates';
 import { mmss } from '@/lib/format';
 import { hoursSinceLast, nextSession, sessionOn, streakWeeks, weekdayOf, weeksSince } from '@/lib/schedule';
-import { isDeloadWeek, useApp, usePlan } from '@/store/app';
+import { isDeloadWeek, useApp, useBudget, usePlan } from '@/store/app';
 import { rankFor, totalXp } from '@/lib/rank';
 import { RankChip } from '@/components/Rank';
 import { useLive } from '@/store/live';
@@ -60,7 +61,16 @@ export function Today() {
   const featuredId = pick ?? (isTrainingToday ? todayDay!.id : next?.day.id ?? routine.days[0].id);
   const featured = plan.days.find((d) => d.day.id === featuredId) ?? plan.days[0];
   const dayIndex = plan.days.indexOf(featured);
+  const budget = useBudget();
+  const sessionMinutes = Math.round(budget / 60);
+  const scheduleDeload = useApp((s) => s.scheduleDeload);
   const streak = streakWeeks(sessions ?? [], today);
+  // Estancamiento: ejercicios de la rutina sin mejorar su mejor e1RM en 3 sesiones
+  const stalled = useMemo(() => {
+    if (!sessions) return [] as string[];
+    const ids = [...new Set(plan.days.flatMap((d) => d.items.filter((i) => i.priority >= 3).map((i) => i.exercise.id)))];
+    return ids.filter((id) => isStalled(sessions.map((x) => ({ date: x.date, sets: x.sets.filter((y) => y.exerciseId === id) })).filter((h) => h.sets.length)));
+  }, [sessions, plan]);
   const rank = useMemo(() => rankFor(totalXp(sessions ?? [])), [sessions]);
   const since = hoursSinceLast(sessions ?? [], today);
   const deloadNow = isDeloadWeek(deloads, today);
@@ -130,15 +140,15 @@ export function Today() {
               </div>
               <h1 className="h-display mt-1 text-[clamp(32px,10.5vw,44px)] sm:text-5xl lg:text-[40px] 2xl:text-5xl">{featured.name.split(' · ').map((p, i) => <span key={i} className="block">{p}</span>)}</h1>
             </div>
-            <Ring value={featured.seconds / 2400} size={wide ? 124 : 100} stroke={wide ? 9 : 8} label={`${Math.round(featured.seconds / 60)} de 40 minutos`}>
+            <Ring value={featured.seconds / budget} size={wide ? 124 : 100} stroke={wide ? 9 : 8} label={`${Math.round(featured.seconds / 60)} de ${sessionMinutes} minutos`}>
               <div className="text-center leading-none">
                 <NumberTicker value={Math.round(featured.seconds / 60)} className={`block font-semibold ${wide ? "text-4xl" : "text-3xl"}`} />
-                <span className="eyebrow !text-[10px]">/40 min</span>
+                <span className="eyebrow !text-[10px]">/{sessionMinutes} min</span>
               </div>
             </Ring>
           </div>
 
-          <PlanBar day={featured} />
+          <PlanBar day={featured} budget={budget} />
 
           <div className="relative mt-4 grid grid-cols-3 gap-2">
             <Stat label="Ejercicios" value={featured.items.length} />
@@ -200,6 +210,19 @@ export function Today() {
             <WeekStrip doneDates={doneDates} today={today} />
           </Rise>
 
+          {stalled.length >= 2 && !deloadNow && (
+            <Rise as="section" className="hazard-ember p-5">
+              <div className="eyebrow mb-1 text-ember">Estancamiento detectado</div>
+              <p className="text-sm">
+                Llevas 3 sesiones sin mejorar en {stalled.slice(0, 3).map((id) => getExercise(id).name).join(', ')}. En Heavy Duty la respuesta suele ser más
+                descanso: una semana de descarga (−40 % series, −10 % carga).
+              </p>
+              <button className="btn-ghost mt-3 w-full" onClick={() => scheduleDeload(isoDate(addDays(startOfWeek(today), 7)))}>
+                Programar descarga la próxima semana
+              </button>
+            </Rise>
+          )}
+
           {deload.due && !deloadNow && (
             <Rise as="section" className="hazard-ember p-5">
               <div className="eyebrow mb-1 text-ember">Descarga sugerida</div>
@@ -228,9 +251,11 @@ export function Today() {
       <ReadinessSheet
         open={readyOpen}
         onClose={() => setReadyOpen(false)}
-        onDone={(r) => {
+        defaultMinutes={sessionMinutes}
+        hoursSince={since}
+        onDone={(r, minutes) => {
           setReadyOpen(false);
-          void startWorkout(featured.day.id, r);
+          void startWorkout(featured.day.id, r, minutes);
         }}
       />
     </Page>
@@ -250,8 +275,8 @@ function Stat({ label, value, suffix }: { label: string; value: number; suffix?:
   );
 }
 
-/** Presupuesto de 40 min segmentado: cada bloque es un ejercicio, a escala. */
-function PlanBar({ day }: { day: PrescribedDay }) {
+/** Tiempo disponible segmentado: cada bloque es un ejercicio, a escala. */
+function PlanBar({ day, budget }: { day: PrescribedDay; budget: number }) {
   const general = day.timeline[0]?.kind === 'general' ? day.timeline[0].seconds : 0;
   const segs = [
     { key: 'gen', sec: general, tone: 'bg-line2', label: 'Calentamiento general' },
@@ -263,11 +288,11 @@ function PlanBar({ day }: { day: PrescribedDay }) {
     }))
   ].filter((x) => x.sec > 0);
   return (
-    <div className="relative mt-6" role="img" aria-label={`Presupuesto: ${mmss(day.seconds)} de 40:00 en ${day.items.length} ejercicios`}>
+    <div className="relative mt-6" role="img" aria-label={`Presupuesto: ${mmss(day.seconds)} de ${mmss(budget)} en ${day.items.length} ejercicios`}>
       <div className="mb-1.5 flex items-baseline justify-between">
-        <span className="eyebrow">Presupuesto 40:00</span>
-        <span className={`num text-xs ${day.seconds > 2400 ? 'text-ember' : 'text-muted'}`}>
-          {mmss(day.seconds)} · libre {mmss(Math.max(0, 2400 - day.seconds))}
+        <span className="eyebrow">Tiempo {mmss(budget)}</span>
+        <span className={`num text-xs ${day.seconds > budget ? 'text-ember' : 'text-muted'}`}>
+          {mmss(day.seconds)} · libre {mmss(Math.max(0, budget - day.seconds))}
         </span>
       </div>
       <div className="flex h-4 gap-[2px] bg-bg/60 p-[2px]">
@@ -279,13 +304,13 @@ function PlanBar({ day }: { day: PrescribedDay }) {
             initial={{ scaleY: 0 }}
             animate={{ scaleY: 1 }}
             transition={{ delay: 0.2 + i * 0.04, type: 'spring', stiffness: 500, damping: 26 }}
-            style={{ width: `${(sg.sec / 2400) * 100}%`, transformOrigin: 'bottom' }}
+            style={{ width: `${(sg.sec / Math.max(budget, day.seconds)) * 100}%`, transformOrigin: 'bottom' }}
           />
         ))}
       </div>
       <div className="mt-1 flex justify-between font-mono text-[10px] text-muted" aria-hidden>
-        {[0, 10, 20, 30, 40].map((m) => (
-          <span key={m}>{m}</span>
+        {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+          <span key={f}>{Math.round((budget / 60) * f)}</span>
         ))}
       </div>
     </div>

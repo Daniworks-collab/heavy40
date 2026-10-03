@@ -82,7 +82,7 @@ export function validatePlan(days: PrescribedDay[], config: EngineConfig): { wee
         kind: 'tiempo',
         severity: 'critico',
         dayId: d.day.id,
-        text: `${d.name}: ${Math.ceil(d.seconds / 60)} min, pasa de 40. Usa "Optimizar".`
+        text: `${d.name}: ${Math.ceil(d.seconds / 60)} min, pasa de ${Math.round(config.budget / 60)}. Usa "Optimizar".`
       });
     } else if (d.suggestion) {
       warnings.push({ kind: 'tiempo', severity: 'info', dayId: d.day.id, text: `${d.name}: ${d.suggestion.text}.` });

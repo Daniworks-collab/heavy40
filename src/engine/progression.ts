@@ -8,6 +8,13 @@ export interface LoggedSet {
   reps: number;
   effort: Effort;
   technique?: string;
+  /** Tiempo bajo tensión medido o estimado (s). */
+  tut?: number;
+}
+
+export interface Increments {
+  upper: number;
+  lower: number;
 }
 
 export interface ExerciseSession {
@@ -38,10 +45,15 @@ export function roundLoad(ex: Exercise, kg: number): number {
 }
 
 /** Incremento de doble progresión: +2.5 kg superior, +5 kg inferior (mancuernas +1/+2), limitado a ~2-5 %. */
-export function increment(ex: Exercise, kg: number): number {
+export function increment(ex: Exercise, kg: number, inc?: Increments): number {
   const dumbbell = ex.equipment.includes('mancuernas');
-  const base = dumbbell ? (isLower(ex) ? 2 : 1) : isLower(ex) ? 5 : 2.5;
+  const upper = inc?.upper ?? 2.5;
+  const lower = inc?.lower ?? 5;
+  // Mancuernas: el incremento es por mancuerna (≈40 % del de barra, mínimo 1 kg)
+  const base = dumbbell ? Math.max(1, Math.round((isLower(ex) ? lower : upper) * 0.4)) : isLower(ex) ? lower : upper;
   const step = loadStep(ex);
+  // Si el usuario configuró su incremento, manda ese valor; si no, se limita a ~5 % de la carga.
+  if (inc) return Math.max(step, base);
   const capPct = Math.max(step, roundLoad(ex, kg * 0.05));
   return Math.max(step, Math.min(base, capPct));
 }
@@ -60,7 +72,14 @@ export interface LoadSuggestion {
  * Doble progresión: si TODAS las series efectivas llegan al tope del rango con el esfuerzo objetivo
  * (o más duro) → sube carga. Si alguna cae bajo el mínimo → baja 5-10 %. Si no → misma carga, +1 rep.
  */
-export function suggestLoad(ex: Exercise, reps: [number, number], target: Effort, last?: ExerciseSession, calibrated?: number): LoadSuggestion {
+export function suggestLoad(
+  ex: Exercise,
+  reps: [number, number],
+  target: Effort,
+  last?: ExerciseSession,
+  calibrated?: number,
+  inc?: Increments
+): LoadSuggestion {
   const work = last?.sets.filter((s) => s.kind === 'work' && s.exerciseId === ex.id) ?? [];
   if (work.length === 0) {
     if (calibrated) return { kg: roundLoad(ex, calibrated), action: 'mantener', text: 'Carga de calibración' };
@@ -71,8 +90,8 @@ export function suggestLoad(ex: Exercise, reps: [number, number], target: Effort
   const allTop = top.every((s) => s.reps >= reps[1] && EFFORT_RANK[s.effort] <= EFFORT_RANK[target]);
   const anyLow = top.some((s) => s.reps < reps[0]);
   if (allTop) {
-    const inc = increment(ex, kg);
-    return { kg: roundLoad(ex, kg + inc), action: 'subir', text: `Llegaste al tope (${reps[1]}): +${inc} kg` };
+    const step = increment(ex, kg, inc);
+    return { kg: roundLoad(ex, kg + step), action: 'subir', text: `Llegaste al tope (${reps[1]}): +${step} kg` };
   }
   if (anyLow) {
     const down = roundLoad(ex, kg * 0.925);
@@ -145,4 +164,102 @@ export function deloadDue(opts: { weeksSinceDeload: number; recentReadinessLow: 
   if (opts.weeksSinceDeload >= 8) return { due: true, reason: `${opts.weeksSinceDeload} semanas sin descarga` };
   if (opts.weeksSinceDeload >= 6) return { due: true, reason: 'Ventana de descarga (6-8 semanas)' };
   return { due: false };
+}
+
+// ───────────────────────── Meta del día ─────────────────────────
+
+export interface DayGoal {
+  /** "60 kg × 8" de la mejor serie de la última vez */
+  lastText?: string;
+  /** "Hoy intenta 9 reps o 62.5 kg" */
+  goalText: string;
+  kg: number;
+  reps: number;
+  action: ProgressAction;
+}
+
+export function dayGoal(
+  ex: Exercise,
+  reps: [number, number],
+  target: Effort,
+  last?: ExerciseSession,
+  calibrated?: number,
+  inc?: Increments
+): DayGoal {
+  const sug = suggestLoad(ex, reps, target, last, calibrated, inc);
+  const work = last?.sets.filter((s) => s.kind === 'work' && s.exerciseId === ex.id) ?? [];
+  if (!work.length) {
+    return sug.kg > 0
+      ? { goalText: `Hoy: ${fmt(sug.kg)} kg × ${reps[0]}-${reps[1]}`, kg: sug.kg, reps: reps[0], action: sug.action }
+      : { goalText: `Elige una carga para ${reps[0]}-${reps[1]} reps estrictas`, kg: 0, reps: reps[0], action: 'calibrar' };
+  }
+  const topKg = Math.max(...work.map((s) => s.kg));
+  const best = Math.max(...work.filter((s) => s.kg === topKg).map((s) => s.reps));
+  const lastText = `${fmt(topKg)} kg × ${best}`;
+  if (sug.action === 'subir') {
+    return { lastText, goalText: `Hoy sube a ${fmt(sug.kg)} kg y busca ${reps[0]}+ reps`, kg: sug.kg, reps: reps[0], action: 'subir' };
+  }
+  if (sug.action === 'bajar') {
+    return { lastText, goalText: `Hoy baja a ${fmt(sug.kg)} kg y busca ${reps[0]}+ reps`, kg: sug.kg, reps: reps[0], action: 'bajar' };
+  }
+  const next = Math.min(best + 1, reps[1]);
+  const up = roundLoad(ex, topKg + increment(ex, topKg, inc));
+  return { lastText, goalText: `Hoy intenta ${next} reps o ${fmt(up)} kg`, kg: topKg, reps: next, action: 'mantener' };
+}
+
+/** Serie anterior equivalente (mismo índice de serie efectiva). */
+export function previousSet(last: ExerciseSession | undefined, exerciseId: string, kind: 'warmup' | 'work', index: number): LoggedSet | undefined {
+  return last?.sets.filter((s) => s.exerciseId === exerciseId && s.kind === kind)[index];
+}
+
+// ───────────────────────── Calculadoras ─────────────────────────
+
+export interface WarmupStep {
+  pct: number;
+  reps: string;
+  kg: number;
+}
+
+/** Series de calentamiento en kilos a partir del peso de trabajo. */
+export function warmupPlan(ex: Exercise, workKg: number, sets: { pct: number; reps: string }[]): WarmupStep[] {
+  return sets.map((w) => ({ ...w, kg: warmupLoad(ex, workKg, w.pct) }));
+}
+
+/** Escalera genérica (calculadora libre): barra vacía si aplica, 40/60/80 %. */
+export function genericWarmup(workKg: number, barKg = 20): WarmupStep[] {
+  const r = (x: number) => Math.max(barKg, Math.round(x / 2.5) * 2.5);
+  const out: WarmupStep[] = [];
+  if (workKg >= barKg * 2.5) out.push({ pct: Math.round((barKg / workKg) * 100), reps: '10', kg: barKg });
+  out.push({ pct: 40, reps: '8', kg: r(workKg * 0.4) }, { pct: 60, reps: '5', kg: r(workKg * 0.6) }, { pct: 80, reps: '2-3', kg: r(workKg * 0.8) });
+  return out.filter((s, i, a) => s.kg < workKg && a.findIndex((x) => x.kg === s.kg) === i);
+}
+
+export interface PlateResult {
+  perSide: number[];
+  /** kg que no se pudieron cargar con los discos disponibles */
+  remainder: number;
+  achieved: number;
+}
+
+/** Discos por lado (voraz, del más pesado al más ligero). */
+export function platesPerSide(totalKg: number, barKg: number, available: number[]): PlateResult {
+  const plates = [...available].sort((a, b) => b - a);
+  let side = Math.max(0, (totalKg - barKg) / 2);
+  const perSide: number[] = [];
+  for (const p of plates) {
+    while (side + 1e-9 >= p) {
+      perSide.push(p);
+      side -= p;
+    }
+  }
+  const loaded = perSide.reduce((a, b) => a + b, 0);
+  return { perSide, remainder: Math.round(side * 2 * 100) / 100, achieved: barKg + loaded * 2 };
+}
+
+export function usesBar(ex: Exercise): boolean {
+  return ex.equipment.includes('barra') || ex.equipment.includes('smith');
+}
+
+function fmt(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
