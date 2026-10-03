@@ -2,6 +2,9 @@ import { Table2, LineChart as LineIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
+/** Ticks cortos: sin decimales largos y miles compactos (12.5k). */
+const tick = (v: number) => (Math.abs(v) >= 10000 ? `${Math.round(v / 100) / 10}k` : String(Math.round(v * 10) / 10));
+
 const AXIS = { stroke: 'rgb(var(--muted))', fontSize: 11, fontFamily: 'JetBrains Mono', tickLine: false, axisLine: false } as const;
 
 interface Point {
@@ -22,7 +25,7 @@ function Tip({ active, payload, label, unit }: { active?: boolean; payload?: { v
 }
 
 /** Tarjeta de gráfica con vista de tabla accesible. Serie única → sin leyenda; el título la nombra. */
-export function ChartCard({ title, sub, unit, data, kind = 'area', band, height = 200, right }: {
+export function ChartCard({ title, sub, unit, data, kind = 'area', band, height = 200, right, header }: {
   title: string;
   sub?: string;
   unit: string;
@@ -31,6 +34,7 @@ export function ChartCard({ title, sub, unit, data, kind = 'area', band, height 
   band?: [number, number];
   height?: number;
   right?: ReactNode;
+  header?: ReactNode;
 }) {
   const [table, setTable] = useState(false);
   return (
@@ -52,6 +56,7 @@ export function ChartCard({ title, sub, unit, data, kind = 'area', band, height 
           </button>
         </div>
       </div>
+      {header}
       {data.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted">Sin datos todavía.</p>
       ) : table ? (
@@ -86,7 +91,7 @@ export function ChartCard({ title, sub, unit, data, kind = 'area', band, height 
                 </defs>
                 <CartesianGrid vertical={false} stroke="rgb(var(--line))" strokeDasharray="2 4" />
                 <XAxis dataKey="x" {...AXIS} minTickGap={28} padding={{ left: 6, right: 6 }} />
-                <YAxis {...AXIS} domain={['auto', 'auto']} width={48} />
+                <YAxis {...AXIS} domain={['auto', 'auto']} width={48} tickFormatter={tick} />
                 {band && <ReferenceArea y1={band[0]} y2={band[1]} fill="rgb(var(--ok))" fillOpacity={0.07} />}
                 <Tooltip content={<Tip unit={unit} />} cursor={{ stroke: 'rgb(var(--line2))' }} />
                 <Area
@@ -104,7 +109,7 @@ export function ChartCard({ title, sub, unit, data, kind = 'area', band, height 
               <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: -18 }} barCategoryGap={6}>
                 <CartesianGrid vertical={false} stroke="rgb(var(--line))" strokeDasharray="2 4" />
                 <XAxis dataKey="x" {...AXIS} />
-                <YAxis {...AXIS} allowDecimals={false} width={48} />
+                <YAxis {...AXIS} allowDecimals={false} width={48} tickFormatter={tick} />
                 {band && <ReferenceArea y1={band[0]} y2={band[1]} fill="rgb(var(--ok))" fillOpacity={0.08} />}
                 <Tooltip content={<Tip unit={unit} />} cursor={{ fill: 'rgb(var(--fg) / 0.04)' }} />
                 <Bar dataKey="y" fill="rgb(var(--ember))" radius={[4, 4, 0, 0]} maxBarSize={36} animationDuration={800} />

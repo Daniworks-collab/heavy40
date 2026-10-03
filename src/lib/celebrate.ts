@@ -4,7 +4,18 @@ import { beep, vibrate } from './feedback';
 const EMBER = ['#FF4D1F', '#FF7346', '#EDE6DA', '#C83A12', '#FFB199'];
 
 /** Celebración en capas: confeti + vibración + sonido. Respeta movimiento reducido y los ajustes. */
+let calm = false;
+/** Modo calma: sin confeti (se mantiene el aviso sonoro/vibración si están activos). */
+export function setCalmCelebrations(v: boolean) {
+  calm = v;
+}
+
 export function celebrate(kind: 'pr' | 'medal' | 'rank' | 'month', opts: { sound?: boolean; vibration?: boolean } = {}) {
+  if (calm) {
+    if (opts.vibration !== false) vibrate(40);
+    if (opts.sound !== false) beep(880, 140, 0.12, 'sine');
+    return;
+  }
   const base = { colors: EMBER, disableForReducedMotion: true, zIndex: 90, ticks: 160 } as const;
   if (kind === 'pr') {
     void confetti({ ...base, particleCount: 70, spread: 70, startVelocity: 38, origin: { y: 0.85 }, scalar: 0.9 });

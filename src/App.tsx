@@ -4,6 +4,8 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { Layout } from './components/Layout';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { useApp } from './store/app';
+import { setMasterVolume } from './lib/feedback';
+import { setCalmCelebrations } from './lib/celebrate';
 import { Today } from './screens/Today';
 import { Onboarding } from './screens/Onboarding';
 
@@ -61,13 +63,22 @@ const router = createBrowserRouter([
 
 export function App() {
   const theme = useApp((s) => s.settings.theme);
+  const calm = useApp((s) => !!s.settings.calm);
+  const volume = useApp((s) => s.settings.soundVolume ?? 0.8);
+  useEffect(() => {
+    setMasterVolume(volume);
+  }, [volume]);
+  useEffect(() => {
+    document.documentElement.dataset.calm = calm ? 'true' : 'false';
+    setCalmCelebrations(calm);
+  }, [calm]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
     meta?.setAttribute('content', theme === 'hueso' ? '#EDE6DA' : theme === 'alto' ? '#000000' : '#121215');
   }, [theme]);
   return (
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion={calm ? 'always' : 'user'}>
       <ConnectionBanner />
       <RouterProvider router={router} />
     </MotionConfig>

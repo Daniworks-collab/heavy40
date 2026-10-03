@@ -33,6 +33,12 @@ export interface Settings {
   plates: number[];
   /** Reglas del estilo personalizado */
   custom: CustomStyle;
+  /** Unidad de peso para mostrar e ingresar (el motor siempre trabaja en kg). */
+  units: 'kg' | 'lb';
+  /** Volumen de los sonidos 0-1 */
+  soundVolume: number;
+  /** Modo calma: sin animaciones ni colores brillantes */
+  calm: boolean;
 }
 
 export interface ChangeEntry {
@@ -117,7 +123,10 @@ export const DEFAULT_SETTINGS: Settings = {
   increments: { upper: 2.5, lower: 5 },
   barKg: 20,
   plates: [25, 20, 15, 10, 5, 2.5, 1.25],
-  custom: DEFAULT_CUSTOM
+  custom: DEFAULT_CUSTOM,
+  units: 'kg',
+  soundVolume: 0.8,
+  calm: false
 };
 
 /** Ajustes guardados por versiones anteriores pueden no tener los campos nuevos. */

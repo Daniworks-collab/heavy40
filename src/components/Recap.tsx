@@ -6,11 +6,13 @@ import { celebrate } from '@/lib/celebrate';
 import { int } from '@/lib/format';
 import type { Recap } from '@/lib/recap';
 import { useApp, withDefaults } from '@/store/app';
+import { useUnits } from '@/lib/units';
 import { NumberTicker } from './ui/NumberTicker';
 
 /** Recompensa en capas: resumen semanal y celebración mensual (una sola vez). */
 export function RecapCard({ recap, onClose }: { recap: Recap; onClose: () => void }) {
   const settings = withDefaults(useApp((s) => s.settings));
+  const units = useUnits();
   const fired = useRef(false);
   useEffect(() => {
     if (fired.current) return;
@@ -53,7 +55,7 @@ export function RecapCard({ recap, onClose }: { recap: Recap; onClose: () => voi
       </div>
       <dl className="relative mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Fact label="Sesiones" value={recap.sessions} suffix={`/${recap.planned}`} />
-        <Fact label="Kilos movidos" value={recap.volume} />
+        <Fact label={units.unit === 'lb' ? 'Libras movidas' : 'Kilos movidos'} value={Math.round(units.toDisp(recap.volume))} />
         <Fact label="Minutos" value={recap.minutes} />
         <div>
           <dt className="text-[11px] text-muted">Récords</dt>

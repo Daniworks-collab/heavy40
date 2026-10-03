@@ -1,6 +1,6 @@
 # HEAVY·40
 
-PWA mobile-first de hipertrofia. Nació para **Heavy Duty** (Mentzer / Yates) en sesiones de 40 minutos y 3 días, y ahora admite **cualquier split** (9 prearmados o uno personalizado con nombre propio), **5 estilos** de entrenamiento (HD Puro, HD Adaptado, Fast-40, Hipertrofia clásica y Personalizado) y el **tiempo por sesión** que tengas. Español (México), kg, 100 % local y offline.
+PWA mobile-first de hipertrofia. Nació para **Heavy Duty** (Mentzer / Yates) en sesiones de 40 minutos y 3 días, y ahora admite **cualquier split** (9 prearmados o uno personalizado con nombre propio), **5 estilos** de entrenamiento (HD Puro, HD Adaptado, Fast-40, Hipertrofia clásica y Personalizado) y el **tiempo por sesión** que tengas. Español (México), kg o lb, 100 % local y offline.
 
 ## Cómo correr
 
@@ -12,7 +12,7 @@ npm run build      # tsc estricto + build + service worker
 npm run preview    # sirve dist/ (para probar la PWA offline)
 ```
 
-Requiere Node 18+. No hay backend ni cuentas: todo vive en el navegador (localStorage + IndexedDB). Exporta/importa JSON en **Ajustes**.
+Requiere Node 18+. No hay backend ni cuentas: todo vive en el navegador (localStorage + IndexedDB). Exporta/importa JSON (respaldo completo) o CSV (para Excel/Sheets) en **Ajustes**.
 
 ## Publicación (GitHub Pages)
 
@@ -33,12 +33,14 @@ src/
 │   ├── recalc.ts        computePlan(), diff explicado, applyProposal() (Optimizar)
 │   ├── progression.ts   doble progresión, e1RM, PRs, estancamiento, calibración, descarga
 │   ├── readiness.ts     readiness → modo conservador
-│   └── __tests__/       48 tests
+│   ├── advisor.ts       recomendaciones de volumen por músculo (qué cambiar y con cuántas series)
+│   └── __tests__/       94 tests (motor, splits, CSV y unidades)
 ├── store/           app.ts (perfil, rutina, ajustes; recalcula y guarda el diff), live.ts (sesión en vivo)
-├── db/              Dexie: sesiones, medidas, readiness
+├── db/              Dexie: sesiones, medidas, readiness, fotos de progreso
 ├── components/      Ring, NumberTicker, Sheet, Stepper, MuscleMap, Fx (onda de choque, chispas), PlanWidgets, Chart…
 ├── screens/         Onboarding, Today, Workout, Routine, Library, Progress, Method, Calendar, Nutrition, Settings, More
-├── hooks/ lib/      wake lock, reloj, audio/vibración, fechas, agenda, datos de ejemplo
+├── hooks/ lib/      wake lock, reloj, audio/vibración, fechas, agenda, rangos y medallas, resúmenes,
+│                    compartir (imagen), unidades kg/lb, CSV, compresión de fotos, datos de ejemplo
 PLAN.md              arquitectura y modelo de datos
 DECISIONS.md         decisiones tomadas donde el brief dejaba margen
 ```
@@ -65,7 +67,8 @@ Tras cualquier cambio: `npm test`. El test `templates.test.ts` comprueba que la 
 - **Hoy**: sesión del día con anillo de tiempo, readiness check (3 preguntas), racha, cuenta regresiva, aviso de <48 h, "Iniciar entrenamiento".
 - **Entrenar**: reloj 40:00 con ritmo adelantado/atrasado, tarjeta deslizable por ejercicio, carga sugerida (doble progresión), steppers kg/reps, esfuerzo (fallo/1 RIR/2+), calentamientos diferenciados, temporizador circular con ±15 s, aviso a 10 s con sonido y vibración, metrónomo de tempo, panel post-fallo (rest-pause con cuenta de 15 s, negativas, forzadas, drop set), recorte de un toque si vas >2 min atrasado, Wake Lock, PRs en vivo con chispas, resumen con mapa muscular.
 - **Mi rutina**: 3 días, cambiar ejercicio (bottom sheet filtrado), drag & drop, fijar series, opcionales, recálculo en vivo con "qué cambió y por qué", barra de tiempo, alertas, volumen semanal por bandas, matriz de cobertura, **Optimizar** con antes/después.
-- **Biblioteca**, **Progreso** (e1RM, volumen semanal, PRs, próxima carga, estancamiento, peso y medidas, historial), **Método** (principios, ciencia con referencias, nota honesta, glosario, FAQ), **Recuperación** (calendario, reprogramar, planificador de descarga, tendencia de readiness), **Nutrición** (proteína, hidratación, sueño), **Ajustes** (modo, descansos, calentamiento general, días, sonido/vibración/metrónomo, tema, perfil, equipo, lesiones, exportar/importar, datos de ejemplo, borrar).
+- **Biblioteca**, **Progreso** (rango y medallas, gráfica por ejercicio con 1RM / peso / reps / volumen, volumen semanal y por sesión, PRs, próxima carga, estancamiento, peso y medidas, fotos con comparador antes/después, historial y compartir), **Método** (principios, ciencia con referencias, nota honesta, glosario, FAQ), **Recuperación** (calendario, reprogramar, planificador de descarga, tendencia de readiness), **Nutrición** (proteína, hidratación, sueño), **Ajustes** (estilo y split, tiempo disponible, cadencia, rango de reps, incrementos, barra y discos, kg/lb, descansos, días, sonido con volumen, vibración, metrónomo, tema, modo calma, perfil, equipo, lesiones, exportar/importar JSON y CSV, datos de ejemplo, borrar).
+- **Motivación**: XP y 6 rangos, 13 medallas, racha semanal con congelador, resumen semanal y celebración mensual, confeti en récords (desactivable con modo calma).
 
 ## Aviso
 

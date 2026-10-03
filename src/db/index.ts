@@ -44,10 +44,19 @@ export interface ReadinessRecord {
   low: boolean;
 }
 
+export interface PhotoRecord {
+  id?: number;
+  date: string; // ISO completo
+  blob: Blob;
+  note?: string;
+  weightKg?: number;
+}
+
 class Heavy40DB extends Dexie {
   sessions!: Table<SessionRecord, number>;
   body!: Table<BodyRecord, number>;
   readiness!: Table<ReadinessRecord, number>;
+  photos!: Table<PhotoRecord, number>;
   constructor() {
     super('heavy40');
     this.version(1).stores({
@@ -55,6 +64,8 @@ class Heavy40DB extends Dexie {
       body: '++id, date',
       readiness: '++id, date'
     });
+    // v2: fotos de progreso (sólo en este dispositivo)
+    this.version(2).stores({ photos: '++id, date' });
   }
 }
 
@@ -86,5 +97,5 @@ export async function importAll(data: { sessions?: SessionRecord[]; body?: BodyR
 }
 
 export async function wipeAll() {
-  await Promise.all([db.sessions.clear(), db.body.clear(), db.readiness.clear()]);
+  await Promise.all([db.sessions.clear(), db.body.clear(), db.readiness.clear(), db.photos.clear()]);
 }

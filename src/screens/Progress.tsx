@@ -18,10 +18,20 @@ import type { Muscle } from '@/engine/types';
 import { useSessions } from '@/hooks/useSessions';
 import { addDays, isoDate, parseIso, shortDate, startOfWeek } from '@/lib/dates';
 import { seedDemo } from '@/lib/demo';
-import { kg as fmtKg, mmss } from '@/lib/format';
+import { mmss } from '@/lib/format';
+import { useUnits } from '@/lib/units';
 import { useApp, useBudget, usePerWeek, usePlan } from '@/store/app';
 import { medals, rankFor, totalXp } from '@/lib/rank';
 import { MedalGrid, RankCard } from '@/components/Rank';
+import { PhotosSection } from '@/components/Photos';
+
+const METRIC_LABEL = { e1rm: '1RM', peso: 'Peso', reps: 'Reps', volumen: 'Volumen' } as const;
+const METRIC_SUB = {
+  e1rm: '1RM estimado (Epley), mejor serie por sesión',
+  peso: 'carga máxima por sesión',
+  reps: 'más repeticiones por sesión',
+  volumen: 'peso × reps por sesión'
+} as const;
 
 export default function Progress() {
   const sessions = useSessions();
@@ -32,6 +42,8 @@ export default function Progress() {
   const loads = useApp((s) => s.loads);
   const [exId, setExId] = useState<string | null>(null);
   const [muscle, setMuscle] = useState<Muscle>('pecho');
+  const [metric, setMetric] = useState<'e1rm' | 'peso' | 'reps' | 'volumen'>('e1rm');
+  const units = useUnits();
   const [bodyOpen, setBodyOpen] = useState(false);
   const [openSession, setOpenSession] = useState<number | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -43,12 +55,32 @@ export default function Progress() {
   }, [sessions]);
   const current = exId ?? exIds[0] ?? null;
 
-  const e1rmSeries = useMemo(
+  // Serie por ejercicio según la métrica elegida (1RM, peso, reps o volumen)
+  const exSeries = useMemo(
     () =>
       (sessions ?? [])
-        .map((s) => ({ x: shortDate(s.date), y: bestE1rm(s.sets.filter((x) => x.exerciseId === current)) }))
-        .filter((p) => p.y > 0),
-    [sessions, current]
+        .map((s) => {
+          const w = s.sets.filter((x) => x.exerciseId === current && x.kind === 'work');
+          if (!w.length) return null;
+          const top = w.reduce((a, b) => (b.kg > a.kg || (b.kg === a.kg && b.reps > a.reps) ? b : a));
+          const y =
+            metric === 'e1rm'
+              ? units.toDisp(bestE1rm(w))
+              : metric === 'peso'
+                ? units.toDisp(top.kg)
+                : metric === 'reps'
+                  ? Math.max(...w.map((x) => x.reps))
+                  : Math.round(units.toDisp(w.reduce((a, x) => a + x.kg * x.reps, 0)));
+          return { x: shortDate(s.date), y };
+        })
+        .filter((p): p is { x: string; y: number } => !!p && p.y > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sessions, current, metric, units.unit]
+  );
+  const sessionVolume = useMemo(
+    () => (sessions ?? []).slice(-16).map((s) => ({ x: shortDate(s.date), y: Math.round(units.toDisp(s.volumeKg)) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sessions, units.unit]
   );
 
   const weekly = useMemo(() => {
@@ -91,7 +123,7 @@ export default function Progress() {
     );
   }
 
-  const totalVol = sessions.reduce((a, s) => a + s.volumeKg, 0);
+  const totalVol = units.toDisp(sessions.reduce((a, s) => a + s.volumeKg, 0));
   const rank = rankFor(totalXp(sessions, perWeek));
   const freq = (() => {
     const weeks = Array.from({ length: 8 }).map((_, i) => {
@@ -143,8 +175,8 @@ export default function Progress() {
           label="Volumen total"
           value={totalVol >= 10000 ? Math.round(totalVol / 100) / 10 : Math.round(totalVol)}
           decimals={totalVol >= 10000 ? 1 : 0}
-          suffix={totalVol >= 10000 ? 't' : 'kg'}
-          sub="kilos × repeticiones"
+          suffix={totalVol >= 10000 ? (units.unit === 'kg' ? 't' : 'k lb') : units.label}
+          sub={units.unit === 'kg' ? 'kilos × repeticiones' : 'libras × repeticiones'}
         />
         <Tile icon={<Trophy size={18} />} label="Récords" value={sessions.reduce((a, s) => a + s.prs.length, 0)} sub={prs[0] ? `Último: ${getExercise(prs[0].exerciseId).name}` : 'Supera tu mejor e1RM'} accent />
         <Tile icon={<Timer size={18} />} label="Duración media" text={mmss(avgDur)} sub={`meta ≤ ${mmss(budget)}`} />
@@ -195,10 +227,25 @@ export default function Progress() {
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Rise>
           <ChartCard
-            title="Fuerza estimada"
-            sub={current ? `e1RM de ${getExercise(current).name} · mejor serie por sesión (Epley)` : 'Elige un ejercicio'}
-            unit="kg"
-            data={e1rmSeries}
+            title="Por ejercicio"
+            sub={current ? `${getExercise(current).name} · ${METRIC_SUB[metric]}` : 'Elige un ejercicio'}
+            unit={metric === 'reps' ? 'reps' : units.label}
+            data={exSeries}
+            header={
+              <div className="mb-3 grid grid-cols-4 gap-1" role="radiogroup" aria-label="Métrica">
+                {(['e1rm', 'peso', 'reps', 'volumen'] as const).map((m) => (
+                  <button
+                    key={m}
+                    role="radio"
+                    aria-checked={metric === m}
+                    onClick={() => setMetric(m)}
+                    className={`press min-h-[40px] rounded-md border text-xs font-semibold ${metric === m ? 'border-ember bg-ember/15 text-fg' : 'border-line2 text-muted'}`}
+                  >
+                    {METRIC_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+            }
             right={
               exIds.length > 0 && (
                 <select aria-label="Ejercicio" className="chip max-w-[150px] appearance-none truncate bg-transparent" value={current ?? ''} onChange={(e) => setExId(e.target.value)}>
@@ -233,6 +280,10 @@ export default function Progress() {
         </Rise>
       </div>
 
+      <Rise className="mt-4">
+        <ChartCard title="Volumen por sesión" sub={`Peso × reps de las últimas ${sessionVolume.length} sesiones`} unit={units.label} kind="bar" data={sessionVolume} />
+      </Rise>
+
       <div className="mt-2 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Rise as="section">
           <SectionTitle>Próxima carga</SectionTitle>
@@ -250,7 +301,7 @@ export default function Progress() {
                   <div className="truncate text-sm font-medium">{it.exercise.name}</div>
                   <div className="text-xs text-muted">{sug.text}</div>
                 </div>
-                <span className="num text-sm font-semibold">{sug.kg > 0 ? `${fmtKg(sug.kg)} kg` : '—'}</span>
+                <span className="num text-sm font-semibold">{sug.kg > 0 ? units.fmt(sug.kg) : '—'}</span>
               </li>
             ))}
           </ul>
@@ -277,7 +328,7 @@ export default function Progress() {
                   <Trophy size={15} className="shrink-0 text-ember" />
                   <span className="min-w-0 flex-1 truncate">{getExercise(p.exerciseId).name}</span>
                   <span className="num text-xs text-muted">{shortDate(p.date)}</span>
-                  <span className="num font-semibold">{fmtKg(Math.round(p.value * 10) / 10)} kg</span>
+                  <span className="num font-semibold">{p.kind === 'reps' ? `${p.value} reps` : units.fmt(p.value)}</span>
                 </li>
               ))}
             </ul>
@@ -296,12 +347,13 @@ export default function Progress() {
           Cuerpo
         </SectionTitle>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ChartCard title="Peso corporal" unit="kg" data={(body ?? []).filter((b) => b.weightKg).map((b) => ({ x: shortDate(b.date), y: b.weightKg! }))} />
+          <ChartCard title="Peso corporal" unit={units.label} data={(body ?? []).filter((b) => b.weightKg).map((b) => ({ x: shortDate(b.date), y: units.toDisp(b.weightKg!) }))} />
           <div className="card p-5">
             <h3 className="h-display mb-3 text-2xl">Medidas</h3>
             <MeasuresTable rows={body ?? []} />
           </div>
         </div>
+        <PhotosSection />
       </Rise>
 
       <Rise as="section">
@@ -322,7 +374,7 @@ export default function Progress() {
                       {groupSets(s.sets).map(([id, sets]) => (
                         <div key={id} className="flex justify-between gap-3 py-1">
                           <span className="truncate text-muted">{getExercise(id).name}</span>
-                          <span className="num shrink-0">{sets.map((x) => `${fmtKg(x.kg)}×${x.reps}`).join('  ')}</span>
+                          <span className="num shrink-0">{sets.map((x) => `${units.fmt(x.kg, false)}×${x.reps}`).join('  ')}</span>
                         </div>
                       ))}
                       {s.notes && <p className="mt-2 rounded-md border border-line bg-bg/50 px-3 py-2 text-sm italic text-muted">“{s.notes}”</p>}
@@ -348,7 +400,8 @@ export default function Progress() {
                         <Share2 size={14} aria-hidden /> Compartir sesión
                       </button>
                       <div className="mt-2 text-xs text-muted">
-                        Volumen {Math.round(s.volumeKg)} kg{s.conservative && ' · conservador'}
+                        Volumen {units.fmt(s.volumeKg)}
+                        {s.conservative && ' · conservador'}
                         {s.deload && ' · descarga'}
                       </div>
                     </div>
@@ -452,9 +505,10 @@ function MeasuresTable({ rows }: { rows: BodyRecord[] }) {
 
 function BodySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const bw = useApp((s) => s.profile.bodyweight);
+  const units = useUnits();
   const [f, setF] = useState<Record<string, string>>({});
   const fields: [string, string, string][] = [
-    ['weightKg', 'Peso', 'kg'],
+    ['weightKg', 'Peso', units.label],
     ['waist', 'Cintura', 'cm'],
     ['chest', 'Pecho', 'cm'],
     ['arm', 'Brazo', 'cm'],
@@ -471,7 +525,7 @@ function BodySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         <button
           className="btn-ember w-full"
           onClick={async () => {
-            await db.body.add({ date: isoDate(), weightKg: num(f.weightKg), waist: num(f.waist), chest: num(f.chest), arm: num(f.arm), thigh: num(f.thigh) });
+            await db.body.add({ date: isoDate(), weightKg: num(f.weightKg) !== undefined ? units.fromDisp(num(f.weightKg)!) : undefined, waist: num(f.waist), chest: num(f.chest), arm: num(f.arm), thigh: num(f.thigh) });
             setF({});
             onClose();
           }}
@@ -486,7 +540,7 @@ function BodySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
             <span className="eyebrow mb-1 block">
               {l} ({u})
             </span>
-            <input className="field num" inputMode="decimal" placeholder={k === 'weightKg' ? String(bw) : '—'} value={f[k] ?? ''} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+            <input className="field num" inputMode="decimal" placeholder={k === 'weightKg' ? String(units.toDisp(bw)) : '—'} value={f[k] ?? ''} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
           </label>
         ))}
       </div>

@@ -11,14 +11,20 @@ export interface ShareSession {
   splitName?: string;
   rankName?: string;
   xpGained?: number;
+  unit?: 'kg' | 'lb';
 }
+
+const vol = (d: ShareSession, withUnit = true) => {
+  const v = Math.round(d.unit === 'lb' ? d.volumeKg / 0.45359237 : d.volumeKg).toLocaleString('es-MX');
+  return withUnit ? `${v} ${d.unit ?? 'kg'}` : v;
+};
 
 const appUrl = () => `${location.origin}${import.meta.env.BASE_URL}`;
 
 export function shareText(d: ShareSession): string {
   const lines = [
     `HEAVY·40 · ${d.dayName}`,
-    `${mmss(d.durationSec)} de ${mmss(d.budgetSec)} · ${d.sets} series efectivas · ${Math.round(d.volumeKg).toLocaleString('es-MX')} kg`
+    `${mmss(d.durationSec)} de ${mmss(d.budgetSec)} · ${d.sets} series efectivas · ${vol(d)}`
   ];
   if (d.prs.length) lines.push(`Récords: ${d.prs.map((p) => `${p.exercise} (${p.text})`).join('; ')}`);
   if (d.xpGained) lines.push(`+${d.xpGained} XP${d.rankName ? ` · ${d.rankName}` : ''}`);
@@ -153,7 +159,7 @@ export async function renderShareImage(d: ShareSession): Promise<Blob | null> {
     ctx.fillText(label, x, y + 115);
   };
   stat(80, 'series efectivas', String(d.sets));
-  stat(500, 'kg movidos', Math.round(d.volumeKg).toLocaleString('es-MX'));
+  stat(500, `${d.unit ?? 'kg'} movidos`, vol(d, false));
   y += 175;
 
   // Récords

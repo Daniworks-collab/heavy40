@@ -51,13 +51,16 @@ PlanResult { days, weekly: VolumeByMuscle, coverage: matriz, warnings: Warning[]
 
 ### Registro (Dexie)
 ```
-sessions   { id, date, dayId, durationSec, readiness, sets: LoggedSet[], prs[] }
-LoggedSet  { exerciseId, kind: 'warmup'|'work', kg, reps, effort, technique? }
+sessions   { id, date, dayId, dayName, mode, durationSec, budgetSec, readiness, sets: LoggedSet[], prs[], volumeKg, muscles, notes? }
+LoggedSet  { exerciseId, kind: 'warmup'|'work', kg, reps, effort, technique?, tut? }
 body       { id, date, weightKg, waist?, chest?, arm?, thigh? }
 readiness  { id, date, sleep, energy, pain, score }
+photos     { id, date, blob (JPEG ≤1080 px), note?, weightKg? }      ← v2, sólo en el dispositivo
 ```
-Perfil, ajustes y rutina viven en Zustand con `persist` (localStorage) porque son pequeños y síncronos;
-el historial va a IndexedDB porque crece. Export/import JSON combina ambos.
+Perfil, ajustes, splits y rutina viven en Zustand con `persist` (localStorage, versión 4 con migraciones) porque son
+pequeños y síncronos; el historial va a IndexedDB porque crece. Export/import JSON combina ambos (sin fotos);
+el CSV exporta series y medidas, e importa sumando sesiones sin duplicar. Todo peso se guarda en kg; las libras
+sólo existen en la interfaz (`lib/units.ts`).
 
 ## Motor — flujo
 

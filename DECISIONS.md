@@ -69,3 +69,27 @@ Decisiones no especificadas en el brief (o donde el brief deja margen), con el m
 | 46 | **Sin Lottie**: los íconos animados se hacen con SVG + motion/CSS. | Peso de la librería y falta de archivos de animación; aprobado. |
 | 47 | Interacción < 300 ms (tokens en `lib/motion.ts`); celebraciones y revelado de datos pueden durar más porque no bloquean nada. El registro de una serie ocurre antes de cualquier animación. | Regla del brief: la velocidad importa más que el adorno. |
 | 48 | El feedback de "serie hecha" (onda, chispas, check) vive en una capa fija para no desmontarse al pasar a descanso. | Que la animación se vea completa sin retrasar el flujo. |
+
+## Fase 4 y 5 (motivación y app nativa)
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| 49 | XP sólo por lo que construye el hábito (serie efectiva, récord, sesión dentro del tiempo, semana completa del split) y 6 rangos; nunca resta. | Motivar sin castigar. |
+| 50 | **Congelador de racha**: 1 por cada 4 semanas completas; una semana congelada no rompe la racha. | Vacaciones o enfermedad no deben borrar meses de constancia. |
+| 51 | Resumen semanal y celebración mensual se muestran **una sola vez** (`seenRecaps`). | Recompensa en capas sin ruido. |
+| 52 | Confeti con `canvas-confetti` (aprobado) sólo en hitos: récords, medallas, rango, mes completo. | Que celebrar siga significando algo. |
+| 53 | Compartir genera una **imagen 1080×1350** en canvas con la estética Forja; si el navegador no comparte archivos, copia el texto y descarga la imagen. | Funciona en iOS, Android y escritorio sin servidor. |
+| 54 | Instalación guiada (Android: aviso nativo; iOS: pasos de "Agregar a inicio"), atajos del manifest y aviso de conexión. | Sentirse como app nativa sin tienda. |
+
+## Fase 6 (progreso y datos)
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| 55 | El motor y la base de datos **siempre guardan kg**; las libras son sólo de presentación (`lib/units.ts`). Redondeo al mostrar: 0.5 kg / 1 lb (0.5 lb en cargas < 20 lb). | Cambiar de unidad no altera el historial ni los cálculos. |
+| 56 | En libras se usan los discos estándar (45/35/25/10/5/2.5) y barra de 45 lb; al cambiar de unidad, la barra y los incrementos por defecto pasan a su equivalente redondo (20 kg ↔ 45 lb, 2.5/5 kg ↔ 5/10 lb). | Evitar valores raros como 5.5 lb. |
+| 57 | Gráfica por ejercicio con 4 métricas (1RM estimado, peso máximo, reps máximas, volumen) y volumen por sesión. | Pedido: ver el progreso desde distintos ángulos. |
+| 58 | **Fotos de progreso** en IndexedDB (tabla `photos`, Dexie v2), comprimidas a 1080 px JPEG 0.8; **no** se incluyen en el respaldo JSON ni en el CSV. | Privacidad y tamaño; nunca salen del dispositivo. |
+| 59 | CSV de series (una fila por serie, con columna `unidad`) y CSV de cuerpo. Importar **suma** sesiones (no reemplaza), omite repetidas (misma fecha y día), reconoce ejercicios por id o por nombre, acepta `,` o `;` y recalcula volumen, músculos y récords. | Abrir los datos en Excel/Sheets o traerlos de otra app. |
+| 60 | El respaldo JSON (v2) ahora incluye splits, semanas congeladas y resúmenes vistos; los respaldos viejos sin splits colocan su rutina en el split activo. | Un respaldo debe restaurar todo. |
+| 61 | **Modo calma** (sin animaciones, confeti ni brillos; brasa atenuada) y volumen maestro de sonido. | Accesibilidad y preferencias de sensibilidad. |
+

@@ -50,7 +50,7 @@ export default function More() {
             </span>
             <span className="flex-1">
               <span className="block font-display text-2xl font-bold uppercase leading-none">Calculadoras</span>
-              <span className="text-sm text-muted">Discos por lado y calentamiento en kilos</span>
+              <span className="text-sm text-muted">Discos por lado y calentamiento con tu carga</span>
             </span>
             <ChevronRight size={18} className="text-muted" aria-hidden />
           </motion.div>

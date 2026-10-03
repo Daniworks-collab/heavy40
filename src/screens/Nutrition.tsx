@@ -5,6 +5,7 @@ import { NumberTicker } from '@/components/ui/NumberTicker';
 import { Page, PageTitle, Rise, SectionTitle } from '@/components/ui/Page';
 import { Ring } from '@/components/ui/Ring';
 import { isoDate } from '@/lib/dates';
+import { useUnits } from '@/lib/units';
 import { useApp } from '@/store/app';
 
 export default function Nutrition() {
@@ -13,7 +14,11 @@ export default function Nutrition() {
   const addWater = useApp((s) => s.addWater);
   const sleepGoal = useApp((s) => s.sleepGoal);
   const setSleepGoal = useApp((s) => s.setSleepGoal);
-  const [weight, setWeight] = useState(bw);
+  const u = useUnits();
+  const lb = u.unit === 'lb';
+  // El control trabaja en la unidad del usuario; los cálculos siempre en kg
+  const [shown, setShown] = useState(() => u.toDisp(bw));
+  const weight = u.fromDisp(shown);
   const [factor, setFactor] = useState(1.8);
   const [meals, setMeals] = useState(4);
   const protein = Math.round(weight * factor);
@@ -30,14 +35,16 @@ export default function Nutrition() {
             <span className="mb-2 text-lg text-muted">g/día</span>
           </div>
           <p className="mt-1 text-sm text-muted">
-            ≈ <span className="num text-fg">{Math.round(protein / meals)}</span> g en cada una de {meals} comidas. Rango útil para hipertrofia: 1.6-2.2 g/kg.
+            ≈ <span className="num text-fg">{Math.round(protein / meals)}</span> g en cada una de {meals} comidas. Rango útil para hipertrofia: 1.6-2.2 g/kg{lb ? ' (0.7-1 g/lb)' : ''}.
           </p>
           <label className="mt-5 block">
             <span className="flex justify-between text-sm">
               <span>Peso corporal</span>
-              <span className="num">{weight} kg</span>
+              <span className="num">
+                {shown} {u.label}
+              </span>
             </span>
-            <input type="range" min={40} max={160} step={0.5} value={weight} onChange={(e) => setWeight(+e.target.value)} className="mt-2 w-full accent-[rgb(var(--ember))]" aria-label="Peso corporal" />
+            <input type="range" min={lb ? 90 : 40} max={lb ? 350 : 160} step={lb ? 1 : 0.5} value={shown} onChange={(e) => setShown(+e.target.value)} className="mt-2 w-full accent-[rgb(var(--ember))]" aria-label="Peso corporal" />
           </label>
           <label className="mt-4 block">
             <span className="flex justify-between text-sm">

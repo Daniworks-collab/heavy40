@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DayGoal, LoggedSet, WarmupStep } from '@/engine/progression';
 import type { Effort } from '@/engine/types';
 import { beep, vibrate } from '@/lib/feedback';
-import { kg as fmtKg, mmss } from '@/lib/format';
+import { mmss } from '@/lib/format';
+import { useUnits } from '@/lib/units';
 
 // ───────────────────────── Meta del día + valores anteriores ─────────────────────────
 
 export function PrevGoal({ goal, prevSets, current }: { goal: DayGoal; prevSets: LoggedSet[]; current: number }) {
+  const u = useUnits();
   return (
     <div className="mt-3 overflow-hidden rounded-md border border-line bg-bg/60">
       <div className="flex items-start gap-2 border-b border-line px-3 py-2.5">
@@ -41,7 +43,7 @@ export function PrevGoal({ goal, prevSets, current }: { goal: DayGoal; prevSets:
                   <span className={`num ${i === current ? 'font-semibold text-ember' : 'text-muted'}`}>{i + 1}</span>
                 </td>
                 <td className="num py-1.5 font-semibold">
-                  {fmtKg(s.kg)} × {s.reps}
+                  {u.fmt(s.kg, false)} × {s.reps}
                   {s.tut ? <span className="ml-1 text-xs font-normal text-muted">TUT {s.tut}s</span> : null}
                 </td>
                 <td className="px-3 py-1.5 text-right text-xs text-muted">{s.effort === 'fallo' ? 'fallo' : s.effort}</td>
@@ -57,6 +59,7 @@ export function PrevGoal({ goal, prevSets, current }: { goal: DayGoal; prevSets:
 // ───────────────────────── Calentamiento en kilos ─────────────────────────
 
 export function WarmupLadder({ steps, current, workKg }: { steps: WarmupStep[]; current: number; workKg: number }) {
+  const u = useUnits();
   return (
     <ol className="mt-3 grid gap-1.5" aria-label="Series de calentamiento">
       {steps.map((w, i) => (
@@ -66,14 +69,14 @@ export function WarmupLadder({ steps, current, workKg }: { steps: WarmupStep[]; 
         >
           <span className="num w-9 text-xs text-muted">{w.pct}%</span>
           <span className="num flex-1 font-semibold">
-            {workKg > 0 ? `${fmtKg(w.kg)} kg` : `${w.pct}%`} <span className="font-normal text-muted">× {w.reps}</span>
+            {workKg > 0 ? u.fmt(w.kg) : `${w.pct}%`} <span className="font-normal text-muted">× {w.reps}</span>
           </span>
           {i < current && <Check size={14} className="text-ok" aria-label="hecha" />}
         </li>
       ))}
       <li className="flex items-center gap-3 rounded-md border border-dashed border-line2 px-3 py-2 text-sm text-muted">
         <span className="num w-9 text-xs">100%</span>
-        <span className="num flex-1">{workKg > 0 ? `${fmtKg(workKg)} kg` : 'Peso de trabajo'} · serie efectiva</span>
+        <span className="num flex-1">{workKg > 0 ? u.fmt(workKg) : 'Peso de trabajo'} · serie efectiva</span>
       </li>
     </ol>
   );

@@ -1,5 +1,10 @@
 // Web Audio + Vibration. Todo es opcional y silencioso si el navegador no lo soporta.
 let ctx: AudioContext | null = null;
+/** Volumen maestro 0-1 (Ajustes → volumen de sonidos). */
+let master = 0.8;
+export function setMasterVolume(v: number) {
+  master = Math.max(0, Math.min(1, v));
+}
 
 function audio(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -21,7 +26,8 @@ export function unlockAudio() {
 
 export function beep(freq = 880, ms = 120, gain = 0.18, type: OscillatorType = 'square') {
   const a = audio();
-  if (!a) return;
+  if (!a || master <= 0) return;
+  gain = Math.max(0.0002, gain * master * 1.25);
   const o = a.createOscillator();
   const g = a.createGain();
   o.type = type;

@@ -273,6 +273,28 @@
   }
 }
 
+/* ───── Modo calma: sin animaciones, sin grano y acento apagado ───── */
+[data-calm='true'] {
+  --ember: 201 140 112;      /* terracota suave #C98C70 */
+  --ember-hot: 214 158 132;
+  --ember-deep: 160 104 80;
+  --grain-opacity: 0;
+}
+[data-calm='true'] .beam,
+[data-calm='true'] .grid-bg {
+  display: none;
+}
+[data-calm='true'] *,
+[data-calm='true'] *::before,
+[data-calm='true'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+[data-calm='true'] .ember-glow {
+  filter: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .beam {
     display: none;

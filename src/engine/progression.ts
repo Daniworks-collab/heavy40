@@ -115,6 +115,16 @@ export interface PR {
   value: number;
   previous: number;
   text: string;
+  /** Peso de la serie (récord de reps) */
+  kg?: number;
+}
+
+/** Texto del récord en la unidad del usuario. */
+export function prLabel(p: PR, fmtLoad: (kg: number) => string = (n) => `${fmt(n)} kg`): string {
+  if (p.kind === 'e1rm') return `1RM estimado ${fmtLoad(p.value)} (antes ${fmtLoad(p.previous)})`;
+  if (p.kind === 'carga') return `Carga máxima ${fmtLoad(p.value)} (antes ${fmtLoad(p.previous)})`;
+  if (p.kind === 'reps' && p.kg != null) return `${p.value} reps con ${fmtLoad(p.kg)} (antes ${p.previous})`;
+  return p.text;
 }
 
 /**
@@ -151,6 +161,7 @@ export function detectPRs(ex: Exercise, sessionSets: LoggedSet[], history: Exerc
       kind: 'reps',
       value: repsPR.s.reps,
       previous: repsPR.prevAt,
+      kg: repsPR.s.kg,
       text: `${repsPR.s.reps} reps con ${repsPR.s.kg} kg (antes ${repsPR.prevAt})`
     });
   }
@@ -206,27 +217,28 @@ export function dayGoal(
   target: Effort,
   last?: ExerciseSession,
   calibrated?: number,
-  inc?: Increments
+  inc?: Increments,
+  fmtLoad: (kg: number) => string = (n) => `${fmt(n)} kg`
 ): DayGoal {
   const sug = suggestLoad(ex, reps, target, last, calibrated, inc);
   const work = last?.sets.filter((s) => s.kind === 'work' && s.exerciseId === ex.id) ?? [];
   if (!work.length) {
     return sug.kg > 0
-      ? { goalText: `Hoy: ${fmt(sug.kg)} kg × ${reps[0]}-${reps[1]}`, kg: sug.kg, reps: reps[0], action: sug.action }
+      ? { goalText: `Hoy: ${fmtLoad(sug.kg)} × ${reps[0]}-${reps[1]}`, kg: sug.kg, reps: reps[0], action: sug.action }
       : { goalText: `Elige una carga para ${reps[0]}-${reps[1]} reps estrictas`, kg: 0, reps: reps[0], action: 'calibrar' };
   }
   const topKg = Math.max(...work.map((s) => s.kg));
   const best = Math.max(...work.filter((s) => s.kg === topKg).map((s) => s.reps));
-  const lastText = `${fmt(topKg)} kg × ${best}`;
+  const lastText = `${fmtLoad(topKg)} × ${best}`;
   if (sug.action === 'subir') {
-    return { lastText, goalText: `Hoy sube a ${fmt(sug.kg)} kg y busca ${reps[0]}+ reps`, kg: sug.kg, reps: reps[0], action: 'subir' };
+    return { lastText, goalText: `Hoy sube a ${fmtLoad(sug.kg)} y busca ${reps[0]}+ reps`, kg: sug.kg, reps: reps[0], action: 'subir' };
   }
   if (sug.action === 'bajar') {
-    return { lastText, goalText: `Hoy baja a ${fmt(sug.kg)} kg y busca ${reps[0]}+ reps`, kg: sug.kg, reps: reps[0], action: 'bajar' };
+    return { lastText, goalText: `Hoy baja a ${fmtLoad(sug.kg)} y busca ${reps[0]}+ reps`, kg: sug.kg, reps: reps[0], action: 'bajar' };
   }
   const next = Math.min(best + 1, reps[1]);
   const up = roundLoad(ex, topKg + increment(ex, topKg, inc));
-  return { lastText, goalText: `Hoy intenta ${next} reps o ${fmt(up)} kg`, kg: topKg, reps: next, action: 'mantener' };
+  return { lastText, goalText: `Hoy intenta ${next} reps o ${fmtLoad(up)}`, kg: topKg, reps: next, action: 'mantener' };
 }
 
 /** Serie anterior equivalente (mismo índice de serie efectiva). */

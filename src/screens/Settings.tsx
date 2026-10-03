@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { Database, Download, Sparkles, Trash2, Upload } from 'lucide-react';
+import { Database, Download, FileSpreadsheet, Sparkles, Trash2, Upload } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Page, PageTitle, Rise } from '@/components/ui/Page';
 import { Segmented } from '@/components/ui/Segmented';
@@ -7,7 +7,9 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Stepper } from '@/components/ui/Stepper';
 import { Toggle } from '@/components/ui/Toggle';
 import { CLASS_LABEL, EQUIPMENT, EQUIPMENT_LABEL, JOINTS, JOINT_LABEL, LEVEL_LABEL, MUSCLES, MUSCLE_LABEL, WEEKDAY_SHORT } from '@/data/labels';
-import { exportAll, importAll, wipeAll } from '@/db';
+import { db, exportAll, importAll, wipeAll } from '@/db';
+import { bodyToCsv, csvKind, csvToBody, csvToSessions, sessionsToCsv } from '@/lib/csv';
+import { beep } from '@/lib/feedback';
 import { DEFAULT_REST } from '@/engine/rules';
 import { spacingWarnings } from '@/engine/validate';
 import type { Equipment, ExerciseClass, Joint, Level, Muscle } from '@/engine/types';
@@ -15,6 +17,29 @@ import { seedDemo } from '@/lib/demo';
 import { activeSplit, useApp, withDefaults, type Theme } from '@/store/app';
 import { Link } from 'react-router-dom';
 import { StylePicker } from '@/components/StylePicker';
+import { useUnits } from '@/lib/units';
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const LB = 0.45359237;
+const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
+
+/** Al cambiar de unidad, la barra y los incrementos por defecto pasan a sus equivalentes redondos. */
+function unitSwitch(next: 'kg' | 'lb', st: { barKg: number; increments: { upper: number; lower: number } }) {
+  const map = (v: number, kg: number, lb: number) => (next === 'lb' && near(v, kg) ? lb * LB : next === 'kg' && near(v, lb * LB) ? kg : v);
+  return {
+    units: next,
+    barKg: map(st.barKg, 20, 45),
+    increments: { upper: map(st.increments.upper, 2.5, 5), lower: map(st.increments.lower, 5, 10) }
+  };
+}
+
+function download(blob: Blob, name: string) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -28,6 +53,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 export default function Settings() {
   const s = useApp();
   const st = withDefaults(s.settings);
+  const u = useUnits();
   const sp = activeSplit(s);
   const activeSplitName = sp?.name ?? 'Mi split';
   const activeRestRule = sp?.restRule ?? 'sesion';
@@ -35,25 +61,70 @@ export default function Settings() {
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const csvRef = useRef<HTMLInputElement>(null);
   const show = (l: string[]) => setLines(l);
   const flash = (m: string) => {
     setMsg(m);
-    setTimeout(() => setMsg(null), 3000);
+    setTimeout(() => setMsg(null), 4500);
   };
 
   const weekdays = s.routine.days.map((d) => d.weekday);
   const doExport = async () => {
     const data = await exportAll();
-    const { onboarded, fitnessAck, profile, routine, settings, loads, changes, programStart, deloads, overrides, water, sleepGoal } = useApp.getState();
-    const blob = new Blob(
-      [JSON.stringify({ app: 'heavy40', version: 1, exportedAt: new Date().toISOString(), state: { onboarded, fitnessAck, profile, routine, settings, loads, changes, programStart, deloads, overrides, water, sleepGoal }, ...data }, null, 2)],
-      { type: 'application/json' }
+    const g = useApp.getState();
+    const state = {
+      onboarded: g.onboarded,
+      fitnessAck: g.fitnessAck,
+      profile: g.profile,
+      routine: g.routine,
+      settings: g.settings,
+      loads: g.loads,
+      changes: g.changes,
+      programStart: g.programStart,
+      deloads: g.deloads,
+      overrides: g.overrides,
+      water: g.water,
+      sleepGoal: g.sleepGoal,
+      splits: g.splits,
+      activeSplitId: g.activeSplitId,
+      frozenWeeks: g.frozenWeeks,
+      seenRecaps: g.seenRecaps
+    };
+    download(
+      new Blob([JSON.stringify({ app: 'heavy40', version: 2, exportedAt: new Date().toISOString(), state, ...data }, null, 2)], { type: 'application/json' }),
+      `heavy40-${new Date().toISOString().slice(0, 10)}.json`
     );
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `heavy40-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  };
+
+  const doExportCsv = async () => {
+    const { sessions, body } = await exportAll();
+    const day = new Date().toISOString().slice(0, 10);
+    // BOM para que Excel respete los acentos
+    download(new Blob(['\uFEFF' + sessionsToCsv(sessions, st.units)], { type: 'text/csv' }), `heavy40-series-${day}.csv`);
+    if (body.length) setTimeout(() => download(new Blob(['\uFEFF' + bodyToCsv(body, st.units)], { type: 'text/csv' }), `heavy40-cuerpo-${day}.csv`), 400);
+    flash(body.length ? 'Se descargaron 2 CSV: series y cuerpo' : `CSV de series descargado (${sessions.length} sesiones)`);
+  };
+
+  const doImportCsv = async (file: File) => {
+    try {
+      const text = await file.text();
+      const kind = csvKind(text);
+      if (kind === 'sets') {
+        const r = csvToSessions(text, await db.sessions.toArray());
+        if (r.sessions.length) await db.sessions.bulkAdd(r.sessions);
+        flash(
+          `${plural(r.sessions.length, 'sesión importada', 'sesiones importadas')}` +
+            (r.duplicates ? ` · ${plural(r.duplicates, 'ya existía', 'ya existían')}` : '') +
+            (r.skippedRows ? ` · ${plural(r.skippedRows, 'fila omitida', 'filas omitidas')} (ejercicio o datos no reconocidos)` : '')
+        );
+      } else if (kind === 'body') {
+        const r = csvToBody(text, await db.body.toArray());
+        if (r.body.length) await db.body.bulkAdd(r.body);
+        flash(`${plural(r.body.length, 'registro de cuerpo importado', 'registros de cuerpo importados')}${r.duplicates ? ` · ${plural(r.duplicates, 'ya existía', 'ya existían')}` : ''}`);
+      } else throw new Error('no reconozco las columnas');
+    } catch (e) {
+      flash(`No se pudo importar: ${(e as Error).message}`);
+    }
   };
 
   const doImport = async (file: File) => {
@@ -61,7 +132,16 @@ export default function Settings() {
       const json = JSON.parse(await file.text());
       if (json.app !== 'heavy40') throw new Error('Archivo no válido');
       await importAll(json);
-      if (json.state) useApp.getState().replaceAll(json.state);
+      if (json.state) {
+        const next = { ...json.state };
+        if (next.settings) next.settings = withDefaults(next.settings);
+        // Respaldos anteriores a los splits: la rutina se guarda en el split activo
+        if (next.routine && !next.splits) {
+          const cur = useApp.getState();
+          next.splits = cur.splits.map((x) => (x.id === cur.activeSplitId ? { ...x, routine: next.routine } : x));
+        }
+        useApp.getState().replaceAll(next);
+      }
       flash('Datos importados');
     } catch (e) {
       flash(`No se pudo importar: ${(e as Error).message}`);
@@ -96,9 +176,19 @@ export default function Settings() {
             </span>
             <span className="text-muted">Cambiar ›</span>
           </Link>
-          <div className="mt-2 flex items-center justify-between rounded-md border border-line px-4 py-3 text-sm">
-            <span>Unidades</span>
-            <span className="num text-muted">kg</span>
+          <div className="mt-4">
+            <div className="eyebrow mb-2">Unidades de peso</div>
+            <Segmented<'kg' | 'lb'>
+              label="Unidades de peso"
+              value={st.units}
+              onChange={(next) => s.updateSettings(unitSwitch(next, st))}
+              size="sm"
+              options={[
+                { value: 'kg', label: 'Kilogramos' },
+                { value: 'lb', label: 'Libras' }
+              ]}
+            />
+            <p className="mt-1.5 text-xs text-muted">Cambia cómo se muestran e ingresan los pesos. Tu historial se conserva y se convierte solo.</p>
           </div>
         </Group>
 
@@ -164,12 +254,15 @@ export default function Settings() {
         <Group title="Progresión y discos">
           <div className="eyebrow mb-2">Incremento al llegar al tope del rango</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Stepper label="Tren superior" unit="kg" value={st.increments.upper} min={0.5} max={10} step={0.5} onChange={(v) => s.updateSettings({ increments: { ...st.increments, upper: v } })} />
-            <Stepper label="Tren inferior" unit="kg" value={st.increments.lower} min={0.5} max={20} step={0.5} onChange={(v) => s.updateSettings({ increments: { ...st.increments, lower: v } })} />
+            <Stepper label="Tren superior" unit={u.label} value={u.toDisp(st.increments.upper)} min={u.unit === 'kg' ? 0.5 : 1} max={u.unit === 'kg' ? 10 : 25} step={u.unit === 'kg' ? 0.5 : 1} onChange={(v) => s.updateSettings({ increments: { ...st.increments, upper: u.fromDisp(v) } })} />
+            <Stepper label="Tren inferior" unit={u.label} value={u.toDisp(st.increments.lower)} min={u.unit === 'kg' ? 0.5 : 1} max={u.unit === 'kg' ? 20 : 45} step={u.unit === 'kg' ? 0.5 : 1} onChange={(v) => s.updateSettings({ increments: { ...st.increments, lower: u.fromDisp(v) } })} />
           </div>
-          <p className="mt-2 text-xs text-muted">Con mancuernas se aplica ~40 % por mancuerna (mínimo 1 kg).</p>
+          <p className="mt-2 text-xs text-muted">Con mancuernas se aplica ~40 % por mancuerna (mínimo {u.unit === 'kg' ? '1 kg' : '2.5 lb'}).</p>
           <div className="eyebrow mb-2 mt-5">Barra y discos disponibles</div>
-          <Stepper label="Barra" unit="kg" value={st.barKg} min={0} max={30} step={2.5} onChange={(v) => s.updateSettings({ barKg: v })} />
+          <Stepper label="Barra" unit={u.label} value={u.toDisp(st.barKg)} min={0} max={u.unit === 'kg' ? 30 : 65} step={u.unit === 'kg' ? 2.5 : 5} onChange={(v) => s.updateSettings({ barKg: u.fromDisp(v) })} />
+          {u.unit === 'lb' ? (
+            <p className="mt-3 text-xs text-muted">En libras se usan los discos estándar: 45, 35, 25, 10, 5 y 2.5 lb.</p>
+          ) : (
           <div className="mt-3 flex flex-wrap gap-2">
             {[25, 20, 15, 10, 5, 2.5, 1.25, 0.5].map((p) => {
               const on = st.plates.includes(p);
@@ -185,6 +278,7 @@ export default function Settings() {
               );
             })}
           </div>
+          )}
         </Group>
 
         <Group title="Tiempos">
@@ -258,7 +352,30 @@ export default function Settings() {
         <Group title="Sonido, vibración y tema">
           <Toggle label="Sonido" sub="Avisos a 10 s y fin del descanso (Web Audio)" on={s.settings.sound} onChange={(v) => s.updateSettings({ sound: v })} />
           <Toggle label="Vibración" sub="En serie hecha y fin de descanso" on={s.settings.vibration} onChange={(v) => s.updateSettings({ vibration: v })} />
-          <Toggle label="Metrónomo de tempo" sub="Activado por defecto al entrenar (2 s sube · 3 s baja)" on={s.settings.metronome} onChange={(v) => s.updateSettings({ metronome: v })} />
+          <Toggle label="Metrónomo de tempo" sub="Activado por defecto al entrenar" on={s.settings.metronome} onChange={(v) => s.updateSettings({ metronome: v })} />
+          <label className="mt-2 block">
+            <span className="flex justify-between text-sm">
+              <span>Volumen de sonidos</span>
+              <span className="num text-muted">{Math.round(st.soundVolume * 100)} %</span>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(st.soundVolume * 100)}
+              onChange={(e) => s.updateSettings({ soundVolume: +e.target.value / 100 })}
+              onPointerUp={() => beep(880, 120, 0.18)}
+              className="mt-2 h-10 w-full accent-[rgb(var(--ember))]"
+              aria-label="Volumen de sonidos"
+            />
+          </label>
+          <Toggle
+            label="Modo calma"
+            sub="Sin animaciones, sin confeti y colores apagados. Para días tranquilos o si te molesta el movimiento."
+            on={st.calm}
+            onChange={(v) => s.updateSettings({ calm: v })}
+          />
           <div className="mt-3">
             <Segmented<Theme>
               label="Tema"
@@ -284,7 +401,7 @@ export default function Settings() {
             options={(['principiante', 'intermedio', 'avanzado'] as Level[]).map((l) => ({ value: l, label: LEVEL_LABEL[l] }))}
           />
           <div className="mt-4">
-            <Stepper label="Peso corporal" unit="kg" value={s.profile.bodyweight} step={0.5} min={35} max={250} onChange={(v) => s.setProfile({ bodyweight: v })} />
+            <Stepper label="Peso corporal" unit={u.label} value={u.toDisp(s.profile.bodyweight)} step={u.unit === 'kg' ? 0.5 : 1} min={u.unit === 'kg' ? 35 : 77} max={u.unit === 'kg' ? 250 : 550} onChange={(v) => s.setProfile({ bodyweight: u.fromDisp(v) })} />
           </div>
           <div className="eyebrow mb-2 mt-4">Músculos prioritarios (máx. 2)</div>
           <div className="flex flex-wrap gap-2">
@@ -351,6 +468,12 @@ export default function Settings() {
             <button className="btn-ghost" onClick={() => fileRef.current?.click()}>
               <Upload size={16} /> Importar JSON
             </button>
+            <button className="btn-ghost" onClick={() => void doExportCsv()}>
+              <FileSpreadsheet size={16} /> Exportar CSV
+            </button>
+            <button className="btn-ghost" onClick={() => csvRef.current?.click()}>
+              <Upload size={16} /> Importar CSV
+            </button>
             <button
               className="btn-ghost"
               onClick={async () => {
@@ -375,6 +498,20 @@ export default function Settings() {
               e.target.value = '';
             }}
           />
+          <input
+            ref={csvRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void doImportCsv(f);
+              e.target.value = '';
+            }}
+          />
+          <p className="mt-3 text-xs text-muted">
+            El CSV trae una fila por serie (fecha, ejercicio, peso, unidad, reps, esfuerzo) para abrirlo en Excel o Sheets. Al importarlo se suman sesiones nuevas sin borrar las tuyas; las repetidas se omiten. El JSON es el respaldo completo. Las fotos nunca salen del dispositivo.
+          </p>
           {msg && <p className="mt-3 text-sm text-ok" role="status">{msg}</p>}
         </Group>
       </div>

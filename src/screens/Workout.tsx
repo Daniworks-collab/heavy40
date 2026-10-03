@@ -14,7 +14,7 @@ import { Stepper } from '@/components/ui/Stepper';
 import { getExercise } from '@/data/exercises';
 import { MUSCLES } from '@/data/labels';
 import { db, type SessionRecord } from '@/db';
-import { bestE1rm, dayGoal, detectPRs, epley, loadStep, roundLoad, suggestLoad, usesBar, warmupLoad, warmupPlan, type ExerciseSession, type LoggedSet, type PR } from '@/engine/progression';
+import { bestE1rm, dayGoal, detectPRs, epley, loadStep, prLabel, roundLoad, suggestLoad, usesBar, warmupLoad, warmupPlan, type ExerciseSession, type LoggedSet, type PR } from '@/engine/progression';
 import { classRule, softenEffort } from '@/engine/rules';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { PlateStack, ToolsSheet } from '@/components/Calculators';
@@ -24,7 +24,8 @@ import { useNow } from '@/hooks/useNow';
 import { useSessions } from '@/hooks/useSessions';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { anvil, beep, restAlert, vibrate } from '@/lib/feedback';
-import { kg as fmtKg, int, mmss } from '@/lib/format';
+import { int, mmss } from '@/lib/format';
+import { fmtNum, loadStepIn, useUnits } from '@/lib/units';
 import { medals, newlyUnlocked, rankFor, totalXp } from '@/lib/rank';
 import { MedalGrid, RankBadge } from '@/components/Rank';
 import { useApp, withDefaults } from '@/store/app';
@@ -47,6 +48,7 @@ export default function Workout() {
   const live = useLive();
   const sessions = useSessions();
   const settings = withDefaults(useApp((s) => s.settings));
+  const units = useUnits();
   const routineUpdate = useApp((s) => s.updateRoutine);
   const loads = useApp((s) => s.loads);
   const navigate = useNavigate();
@@ -106,8 +108,9 @@ export default function Workout() {
 
   const lastSession = useMemo(() => (ex ? historyFor(sessions, ex.id).at(-1) : undefined), [ex, sessions]);
   const goal = useMemo(
-    () => (item && ex ? dayGoal(ex, item.reps, item.effort, lastSession, loads[ex.id], settings.increments) : undefined),
-    [item, ex, lastSession, loads, settings.increments]
+    () => (item && ex ? dayGoal(ex, item.reps, item.effort, lastSession, loads[ex.id], settings.increments, (kg) => units.fmt(kg)) : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [item, ex, lastSession, loads, settings.increments, units.unit]
   );
 
   const workKg = useMemo(() => {
@@ -162,7 +165,7 @@ export default function Workout() {
       if (hist.length && epley(kgVal, repsVal) > prevBest + 0.01) {
         setSpark((s) => s + 1);
         celebrate('pr', { sound: settings.sound, vibration: settings.vibration });
-        setToast(`PR · e1RM ${fmtKg(Math.round(epley(kgVal, repsVal) * 10) / 10)} kg`);
+        setToast(`Récord · 1RM estimado ${units.fmt(epley(kgVal, repsVal))}`);
         setTimeout(() => setToast(null), 2600);
       }
     }
@@ -221,7 +224,7 @@ export default function Workout() {
             <span className="text-muted">transcurrido {mmss(elapsed)}</span>
             {sessionVolume > 0 && (
               <span className="num text-muted">
-                · <NumberTicker value={sessionVolume} duration={0.5} className="text-fg" /> kg
+                · <NumberTicker value={Math.round(units.toDisp(sessionVolume))} duration={0.5} className="text-fg" /> {units.label}
               </span>
             )}
             <span
@@ -381,7 +384,15 @@ export default function Workout() {
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <Stepper label="Carga" unit="kg" value={kgVal} onChange={setKg} step={loadStep(ex)} big format={fmtKg} />
+                  <Stepper
+                    label="Carga"
+                    unit={units.label}
+                    value={units.toDisp(kgVal)}
+                    onChange={(v) => setKg(units.fromDisp(v))}
+                    step={loadStepIn(loadStep(ex), units.unit)}
+                    big
+                    format={fmtNum}
+                  />
                   {usesBar(ex) && kgVal > 0 && (
                     <button onClick={() => setToolsOpen(true)} className="mt-1 block w-full text-center">
                       <PlateStack total={kgVal} compact />
@@ -576,6 +587,7 @@ function RestView({
   onMini: () => void;
   onDismissPost: () => void;
 }) {
+  const nextUnits = useUnits();
   const rpLeft = postFail?.rp?.endsAt ? Math.max(0, (postFail.rp.endsAt - now) / 1000) : 0;
   const rpBeeped = useRef<number | null>(null);
   useEffect(() => {
@@ -664,7 +676,7 @@ function RestView({
             {nextTask.kind === 'warmup'
               ? `Calentamiento ${nextItem.warmups[nextTask.setIndex]?.pct}% × ${nextItem.warmups[nextTask.setIndex]?.reps}`
               : `Serie efectiva ${nextTask.setIndex + 1}/${nextItem.workSets} · ${nextItem.reps[0]}-${nextItem.reps[1]} reps`}
-            {nextKg > 0 && <span className="num text-fg"> · {fmtKg(nextKg)} kg</span>}
+            {nextKg > 0 && <span className="num text-fg"> · {nextUnits.fmt(nextKg)}</span>}
           </div>
         </div>
       )}
@@ -675,6 +687,7 @@ function RestView({
 // ───────────────────────── Resumen ─────────────────────────
 
 function Summary({ onExit }: { onExit: () => void }) {
+  const sUnits = useUnits();
   const live = useLive();
   const sessions = useSessions();
   const mode = useApp((s) => s.settings.mode);
@@ -754,7 +767,7 @@ function Summary({ onExit }: { onExit: () => void }) {
       conservative: live.conservative,
       deload: live.deload,
       readiness: live.readiness,
-      sets: live.logs.map(({ exerciseId, kind, kg, reps, effort, technique }) => ({ exerciseId, kind, kg, reps, effort, technique })),
+      sets: live.logs.map(({ exerciseId, kind, kg, reps, effort, technique, tut }) => ({ exerciseId, kind, kg, reps, effort, technique, tut })),
       prs,
       volumeKg: volume,
       muscles,
@@ -815,9 +828,9 @@ function Summary({ onExit }: { onExit: () => void }) {
         <div className="grid flex-1 gap-3">
           <div>
             <div className="num text-3xl font-semibold">
-              <NumberTicker value={volume} /> <span className="text-base text-muted">kg</span>
+              <NumberTicker value={Math.round(sUnits.toDisp(volume))} /> <span className="text-base text-muted">{sUnits.label}</span>
             </div>
-            <div className="text-xs text-muted">Volumen (kg × reps)</div>
+            <div className="text-xs text-muted">Volumen ({sUnits.label} × reps)</div>
           </div>
           <div>
             <div className="num text-3xl font-semibold">
@@ -847,7 +860,7 @@ function Summary({ onExit }: { onExit: () => void }) {
             {prs.map((p, i) => (
               <li key={i} className="flex justify-between gap-3 text-sm">
                 <span className="truncate">{getExercise(p.exerciseId).name}</span>
-                <span className="num shrink-0 text-ember">{p.text}</span>
+                <span className="num shrink-0 text-ember">{prLabel(p, (kg) => sUnits.fmt(kg))}</span>
               </li>
             ))}
           </ul>
@@ -892,7 +905,8 @@ function Summary({ onExit }: { onExit: () => void }) {
               budgetSec: budget,
               sets: work.length,
               volumeKg: volume,
-              prs: prs.map((p) => ({ exercise: getExercise(p.exerciseId).name, text: p.text })),
+              prs: prs.map((p) => ({ exercise: getExercise(p.exerciseId).name, text: prLabel(p, (kg) => sUnits.fmt(kg)) })),
+              unit: sUnits.unit,
               splitName: splitName,
               rankName: after.rank.name,
               xpGained: xpAfter - xpBefore
