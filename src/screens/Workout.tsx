@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Shockwave, Sparks } from '@/components/Fx';
 import { SetCheck } from '@/components/Motion';
+import { celebrate } from '@/lib/celebrate';
 import { MuscleMap } from '@/components/MuscleMap';
 import { NumberTicker } from '@/components/ui/NumberTicker';
 import { Ring } from '@/components/ui/Ring';
@@ -164,6 +165,7 @@ export default function Workout() {
       const prevBest = Math.max(bestE1rm(hist), bestE1rm(live.logs.filter((l) => l.exerciseId === ex.id)));
       if (hist.length && epley(kgVal, repsVal) > prevBest + 0.01) {
         setSpark((s) => s + 1);
+        celebrate('pr', { sound: settings.sound, vibration: settings.vibration });
         setToast(`PR · e1RM ${fmtKg(Math.round(epley(kgVal, repsVal) * 10) / 10)} kg`);
         setTimeout(() => setToast(null), 2600);
       }

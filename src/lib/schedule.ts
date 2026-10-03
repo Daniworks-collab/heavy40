@@ -31,7 +31,11 @@ export function nextInRotation(routine: Routine, sessions: SessionRecord[]): Day
 }
 
 /** Semanas consecutivas cumpliendo los días del split (la actual cuenta si ya va completa). */
-export function streakWeeks(sessions: SessionRecord[], now = new Date(), perWeek = 3): { weeks: number; thisWeek: number } {
+/**
+ * Semanas seguidas cumpliendo el split. Una semana "congelada" no rompe la racha
+ * (pero tampoco suma): para semanas excepcionales (viaje, enfermedad…).
+ */
+export function streakWeeks(sessions: SessionRecord[], now = new Date(), perWeek = 3, frozen: string[] = []): { weeks: number; thisWeek: number } {
   const byWeek = new Map<string, number>();
   for (const s of sessions) {
     const k = weekKey(parseIso(s.date));
@@ -41,8 +45,9 @@ export function streakWeeks(sessions: SessionRecord[], now = new Date(), perWeek
   let weeks = thisWeek >= perWeek ? 1 : 0;
   let cursor = addDays(startOfWeek(now), -7);
   for (let i = 0; i < 520; i++) {
-    if ((byWeek.get(isoDate(cursor)) ?? 0) >= perWeek) weeks++;
-    else break;
+    const k = isoDate(cursor);
+    if ((byWeek.get(k) ?? 0) >= perWeek) weeks++;
+    else if (!frozen.includes(k)) break;
     cursor = addDays(cursor, -7);
   }
   return { weeks, thisWeek };

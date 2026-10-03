@@ -19,6 +19,7 @@
     "@fontsource/big-shoulders-display": "^5.3.0",
     "@fontsource/instrument-sans": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
+    "canvas-confetti": "^1.9.4",
     "dexie": "^4.4.6",
     "lucide-react": "^1.50.0",
     "motion": "^12.43.0",
@@ -29,6 +30,7 @@
     "zustand": "^4.5.7"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.4",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",

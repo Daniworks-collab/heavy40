@@ -117,7 +117,12 @@ export interface PR {
   text: string;
 }
 
-/** Detecta PRs de una sesión frente al historial previo del mismo ejercicio. */
+/**
+ * Detecta récords de una sesión frente al historial previo del mismo ejercicio:
+ * - e1RM: mejor 1RM estimado (Epley)
+ * - carga: más peso que nunca
+ * - reps: más repeticiones que nunca con ese peso (o más)
+ */
 export function detectPRs(ex: Exercise, sessionSets: LoggedSet[], history: ExerciseSession[]): PR[] {
   const work = sessionSets.filter((s) => s.kind === 'work' && s.exerciseId === ex.id);
   if (!work.length || !history.length) return [];
@@ -127,11 +132,28 @@ export function detectPRs(ex: Exercise, sessionSets: LoggedSet[], history: Exerc
   const prevE = bestE1rm(prevSets);
   const nowE = bestE1rm(work);
   if (nowE > prevE + 0.01) {
-    out.push({ exerciseId: ex.id, kind: 'e1rm', value: nowE, previous: prevE, text: `e1RM ${nowE.toFixed(1)} kg (antes ${prevE.toFixed(1)})` });
+    out.push({ exerciseId: ex.id, kind: 'e1rm', value: nowE, previous: prevE, text: `1RM estimado ${nowE.toFixed(1)} kg (antes ${prevE.toFixed(1)})` });
   }
   const prevMax = Math.max(...prevSets.map((s) => s.kg));
   const nowMax = Math.max(...work.map((s) => s.kg));
-  if (nowMax > prevMax) out.push({ exerciseId: ex.id, kind: 'carga', value: nowMax, previous: prevMax, text: `Carga máxima ${nowMax} kg` });
+  if (nowMax > prevMax) out.push({ exerciseId: ex.id, kind: 'carga', value: nowMax, previous: prevMax, text: `Carga máxima ${nowMax} kg (antes ${prevMax})` });
+  // Reps: mejor marca de repeticiones a un peso igual o mayor que nunca
+  const repsPR = work
+    .map((s) => {
+      const prevAt = prevSets.filter((p) => p.kg >= s.kg).reduce((a, p) => Math.max(a, p.reps), 0);
+      return prevAt > 0 && s.reps > prevAt ? { s, prevAt } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b!.s.kg - a!.s.kg)[0];
+  if (repsPR && nowMax <= prevMax) {
+    out.push({
+      exerciseId: ex.id,
+      kind: 'reps',
+      value: repsPR.s.reps,
+      previous: repsPR.prevAt,
+      text: `${repsPR.s.reps} reps con ${repsPR.s.kg} kg (antes ${repsPR.prevAt})`
+    });
+  }
   return out;
 }
 

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, ChevronRight, Flame, Moon, Play, ShieldCheck, Zap } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Flame, Moon, Play, ShieldCheck, Snowflake, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ReadinessSheet } from '@/components/Readiness';
@@ -21,7 +21,9 @@ import { addDays, isoDate, parseIso, shortDate, startOfWeek } from '@/lib/dates'
 import { mmss } from '@/lib/format';
 import { hoursSinceLast, nextSession, sessionOn, streakWeeks, weekdayOf, weeksSince } from '@/lib/schedule';
 import { isDeloadWeek, useActiveSplit, useApp, useBudget, usePlan } from '@/store/app';
-import { rankFor, totalXp } from '@/lib/rank';
+import { freezesAvailable, rankFor, totalXp } from '@/lib/rank';
+import { lastMonthRecap, lastWeekRecap } from '@/lib/recap';
+import { RecapCard } from '@/components/Recap';
 import { RankChip } from '@/components/Rank';
 import { RevealText } from '@/components/Motion';
 import { useLive } from '@/store/live';
@@ -67,7 +69,20 @@ export function Today() {
   const scheduleDeload = useApp((s) => s.scheduleDeload);
   const perWeek = routine.days.length;
   const split = useActiveSplit();
-  const streak = streakWeeks(sessions ?? [], today, perWeek);
+  const frozenWeeks = useApp((s) => s.frozenWeeks ?? []);
+  const seenRecaps = useApp((s) => s.seenRecaps ?? []);
+  const freezeWeek = useApp((s) => s.freezeWeek);
+  const unfreezeWeek = useApp((s) => s.unfreezeWeek);
+  const markRecapSeen = useApp((s) => s.markRecapSeen);
+  const streak = streakWeeks(sessions ?? [], today, perWeek, frozenWeeks);
+  const freezes = freezesAvailable(sessions ?? [], perWeek, frozenWeeks);
+  const thisWeekKey = isoDate(startOfWeek(today));
+  const lastWeekKey = isoDate(addDays(startOfWeek(today), -7));
+  // ¿Congelar la semana pasada salvaría la racha?
+  const rescue = streakWeeks(sessions ?? [], today, perWeek, [...frozenWeeks, lastWeekKey]).weeks > streak.weeks;
+  const recaps = [lastMonthRecap(sessions ?? [], perWeek, today), lastWeekRecap(sessions ?? [], perWeek, today)].filter(
+    (r): r is NonNullable<typeof r> => !!r && !seenRecaps.includes(r.key)
+  );
   // Estancamiento: ejercicios de la rutina sin mejorar su mejor e1RM en 3 sesiones
   const stalled = useMemo(() => {
     if (!sessions) return [] as string[];
@@ -134,6 +149,12 @@ export function Today() {
           <RankChip state={rank} />
         </Link>
       </Rise>
+
+      <AnimatePresence initial={false}>
+        {recaps.slice(0, 1).map((r) => (
+          <RecapCard key={r.key} recap={r} onClose={() => markRecapSeen(r.key)} />
+        ))}
+      </AnimatePresence>
 
       <Rise className="mb-4">
         <p className="eyebrow">{greeting(today)}</p>
@@ -241,6 +262,26 @@ export function Today() {
             </div>
             <div className="mt-4">
               <WeekStrip doneDates={doneDates} today={today} />
+            </div>
+            {/* Congelador de racha: para semanas excepcionales, sin presión */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-sm">
+              <span className="inline-flex items-center gap-1.5 text-muted" title="1 al empezar + 1 cada 4 semanas completas (máx. 2)">
+                <Snowflake size={15} className={freezes ? 'text-[#7CC4FF]' : ''} aria-hidden />
+                <span className="num text-fg">{freezes}</span> {freezes === 1 ? 'congelador' : 'congeladores'}
+              </span>
+              {rescue && freezes > 0 && !frozenWeeks.includes(lastWeekKey) ? (
+                <button onClick={() => freezeWeek(lastWeekKey)} className="chip ml-auto min-h-[44px] !border-[#7CC4FF]/60">
+                  Salvar racha: congelar semana pasada
+                </button>
+              ) : frozenWeeks.includes(thisWeekKey) ? (
+                <button onClick={() => unfreezeWeek(thisWeekKey)} className="chip ml-auto min-h-[44px]">
+                  Semana congelada · deshacer
+                </button>
+              ) : streak.thisWeek < perWeek && freezes > 0 ? (
+                <button onClick={() => freezeWeek(thisWeekKey)} className="chip ml-auto min-h-[44px]">
+                  ¿Semana excepcional? Congelar
+                </button>
+              ) : null}
             </div>
           </Rise>
 

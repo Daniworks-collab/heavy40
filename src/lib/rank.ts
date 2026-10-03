@@ -71,7 +71,7 @@ export interface Medal {
   id: string;
   name: string;
   desc: string;
-  icon: 'spark' | 'calendar' | 'flame' | 'timer' | 'layers' | 'trophy' | 'anvil' | 'crown';
+  icon: 'spark' | 'calendar' | 'flame' | 'timer' | 'layers' | 'trophy' | 'anvil' | 'crown' | 'dumbbell' | 'medal' | 'star' | 'zap' | 'month';
   current: number;
   goal: number;
   unlocked: boolean;
@@ -97,14 +97,23 @@ export function medals(sessions: SessionRecord[], perWeek = 3): Medal[] {
     goal,
     unlocked: current >= goal
   });
+  // Mes completo: un mes calendario con al menos 4 semanas de split (sesiones ≥ días × 4)
+  const byMonth = new Map<string, number>();
+  for (const s of sessions) byMonth.set(s.date.slice(0, 7), (byMonth.get(s.date.slice(0, 7)) ?? 0) + 1);
+  const fullMonths = [...byMonth.values()].filter((n) => n >= perWeek * 4).length;
   return [
     m('chispa', 'Primera chispa', 'Completa tu primera sesión', 'spark', sessions.length, 1),
+    m('pr1', 'Primer récord', 'Supera una marca personal', 'zap', prs, 1),
     m('semana', 'Semana completa', 'Todos los días de tu split en una semana', 'calendar', fullWeeks, 1),
+    m('w10', 'Diez', '10 entrenamientos', 'dumbbell', sessions.length, 10),
+    m('mes', 'Mes completo', 'Un mes con todas tus sesiones (días × 4)', 'month', fullMonths, 1),
     m('racha4', 'Racha de hierro', '4 semanas seguidas completas', 'flame', streak, 4),
     m('disciplina', 'Disciplina', '10 sesiones dentro de tu tiempo', 'timer', under, 10),
-    m('centurion', 'Centurión', '100 series efectivas', 'layers', work, 100),
     m('records', 'Rompe-récords', '10 récords personales', 'trophy', prs, 10),
+    m('w50', 'Cincuenta', '50 entrenamientos', 'medal', sessions.length, 50),
+    m('centurion', 'Centurión', '100 series efectivas', 'layers', work, 100),
     m('yunque', 'Yunque', '12 semanas seguidas completas', 'anvil', streak, 12),
+    m('w100', 'Cien', '100 entrenamientos', 'star', sessions.length, 100),
     m('mil', 'Mil golpes', '1,000 series efectivas', 'crown', work, 1000)
   ];
 }
@@ -123,4 +132,22 @@ function longestStreak(byWeek: Map<string, number>, perWeek: number): number {
     prev = t;
   }
   return best;
+}
+
+/** Medallas que pasan de bloqueadas a desbloqueadas. */
+export function newlyUnlocked(before: Medal[], after: Medal[]): Medal[] {
+  const was = new Set(before.filter((m) => m.unlocked).map((m) => m.id));
+  return after.filter((m) => m.unlocked && !was.has(m.id));
+}
+
+/** Congeladores de racha: 1 al empezar + 1 por cada 4 semanas completas (máx. 2 guardados). */
+export function freezesAvailable(sessions: SessionRecord[], perWeek: number, frozen: string[]): number {
+  const byWeek = new Map<string, number>();
+  for (const s of sessions) {
+    const k = weekKey(parseIso(s.date.slice(0, 10)));
+    byWeek.set(k, (byWeek.get(k) ?? 0) + 1);
+  }
+  const full = [...byWeek.values()].filter((n) => n >= perWeek).length;
+  const earned = 1 + Math.floor(full / 4);
+  return Math.max(0, Math.min(2, earned - frozen.length));
 }

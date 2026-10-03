@@ -1,10 +1,10 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { Anvil, CalendarCheck, Crown, Flame, Layers, Lock, Sparkles, Timer, Trophy } from 'lucide-react';
+import { Anvil, CalendarCheck, CalendarRange, Crown, Dumbbell, Flame, Layers, Lock, Medal as MedalIcon, Sparkles, Star, Timer, Trophy, Zap } from 'lucide-react';
 import { RANKS, type Medal, type RankState } from '@/lib/rank';
 import { int } from '@/lib/format';
 import { NumberTicker } from './ui/NumberTicker';
 
-const MEDAL_ICON = { spark: Sparkles, calendar: CalendarCheck, flame: Flame, timer: Timer, layers: Layers, trophy: Trophy, anvil: Anvil, crown: Crown } as const;
+const MEDAL_ICON = { spark: Sparkles, calendar: CalendarCheck, flame: Flame, timer: Timer, layers: Layers, trophy: Trophy, anvil: Anvil, crown: Crown, dumbbell: Dumbbell, medal: MedalIcon, star: Star, zap: Zap, month: CalendarRange } as const;
 
 /** Insignia de rango: rombo facetado con el número de rango. */
 export function RankBadge({ index, size = 44 }: { index: number; size?: number }) {

@@ -61,6 +61,10 @@ interface AppState {
   /** Biblioteca de splits; `routine` es siempre la rutina del split activo. */
   splits: Split[];
   activeSplitId: string;
+  /** Semanas congeladas (weekKey): no rompen la racha. */
+  frozenWeeks: string[];
+  /** Resúmenes semanales/mensuales ya vistos */
+  seenRecaps: string[];
 
   completeOnboarding: (p: {
     profile: Profile;
@@ -78,6 +82,9 @@ interface AppState {
   addDay: (name: string, weekday: number) => string[];
   removeDay: (dayId: string) => string[];
   updateDay: (dayId: string, patch: Partial<Pick<DayPlan, 'name' | 'weekday'>>) => void;
+  freezeWeek: (weekKey: string) => void;
+  unfreezeWeek: (weekKey: string) => void;
+  markRecapSeen: (key: string) => void;
   updateRoutine: (fn: (r: Routine) => Routine) => string[];
   setMode: (m: Mode) => string[];
   setProfile: (p: Partial<Profile>) => string[];
@@ -169,6 +176,8 @@ const initial = () => ({
   routine: hdSplit().routine,
   splits: [hdSplit()] as Split[],
   activeSplitId: 'split-hd3',
+  frozenWeeks: [] as string[],
+  seenRecaps: [] as string[],
   settings: DEFAULT_SETTINGS,
   loads: {} as Record<string, number>,
   changes: [] as ChangeEntry[],
@@ -292,6 +301,9 @@ export const useApp = create<AppState>()(
           if (id !== s.activeSplitId) return set({ splits });
           set({ splits, activeSplitId: splits[0].id, routine: splits[0].routine });
         },
+        freezeWeek: (k) => set({ frozenWeeks: [...new Set([...(get().frozenWeeks ?? []), k])] }),
+        unfreezeWeek: (k) => set({ frozenWeeks: (get().frozenWeeks ?? []).filter((x) => x !== k) }),
+        markRecapSeen: (k) => set({ seenRecaps: [...new Set([...(get().seenRecaps ?? []), k])].slice(-60) }),
         addDay: (name, weekday) =>
           commit({
             routine: { days: [...get().routine.days, { id: newId('day'), name: name.trim() || `Día ${get().routine.days.length + 1}`, weekday, slots: [] }] }
@@ -335,7 +347,7 @@ export const useApp = create<AppState>()(
     },
     {
       name: 'heavy40-app',
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const st = persisted as Partial<AppState>;
         if (version < 2 && st.settings) st.settings = withDefaults(st.settings);
@@ -345,6 +357,10 @@ export const useApp = create<AppState>()(
           const sp = hdSplit(st.routine ?? defaultRoutine());
           st.splits = [sp];
           st.activeSplitId = sp.id;
+        }
+        if (version < 4) {
+          st.frozenWeeks = st.frozenWeeks ?? [];
+          st.seenRecaps = st.seenRecaps ?? [];
         }
         return st as AppState;
       },
@@ -362,7 +378,9 @@ export const useApp = create<AppState>()(
         water: s.water,
         sleepGoal: s.sleepGoal,
         splits: s.splits,
-        activeSplitId: s.activeSplitId
+        activeSplitId: s.activeSplitId,
+        frozenWeeks: s.frozenWeeks,
+        seenRecaps: s.seenRecaps
       })
     }
   )
