@@ -13,7 +13,8 @@ import { Sheet } from '@/components/ui/Sheet';
 import { EXERCISE_BY_ID } from '@/data/exercises';
 import { CLASS_LABEL, WEEKDAY_LONG, WEEKDAY_SHORT } from '@/data/labels';
 import { applyProposal, computePlan } from '@/engine/recalc';
-import type { PrescribedDay, PrescribedExercise, Slot } from '@/engine/types';
+import type { Muscle, PrescribedDay, PrescribedExercise, Slot } from '@/engine/types';
+import { VolumeAdvicePanel } from '@/components/VolumeAdvice';
 import { mmss } from '@/lib/format';
 import { stateConfig, useActiveSplit, useApp, useBudget, usePlan } from '@/store/app';
 
@@ -33,6 +34,7 @@ export default function Routine() {
   const [dayIdxRaw, setDayIdx] = useState(0);
   const dayIdx = Math.min(dayIdxRaw, Math.max(0, routine.days.length - 1));
   const [dayEdit, setDayEdit] = useState(false);
+  const [volMuscle, setVolMuscle] = useState<Muscle | null>(null);
   const [picker, setPicker] = useState<{ mode: 'swap' | 'add'; slot?: Slot } | null>(null);
   const [optOpen, setOptOpen] = useState(false);
 
@@ -209,8 +211,9 @@ export default function Routine() {
               <h2 className="h-display text-2xl">Volumen semanal</h2>
               <span className="eyebrow">series efectivas</span>
             </div>
-            <p className="mb-4 text-xs text-muted">Directo = 1, indirecto = 0.5. Franja verde: zona óptima. Con 40 min × 3 días el volumen es moderado; es el precio de sesiones cortas.</p>
-            <VolumePanel weekly={plan.weekly} />
+            <p className="mb-4 text-xs text-muted">Directo = 1, indirecto = 0.5. Franja verde: zona óptima. Toca un músculo o revisa las recomendaciones para acercarlo a la zona óptima. Con pocos días o sesiones cortas el volumen puede quedar moderado; es el precio de sesiones cortas.</p>
+            <VolumePanel weekly={plan.weekly} selected={volMuscle} onSelect={(m) => setVolMuscle(volMuscle === m ? null : m)} />
+            <VolumeAdvicePanel plan={plan} selected={volMuscle} onClear={() => setVolMuscle(null)} />
           </Rise>
           <Rise as="section" className="card p-5">
             <h2 className="h-display mb-3 text-2xl">Cobertura</h2>

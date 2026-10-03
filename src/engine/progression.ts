@@ -146,7 +146,7 @@ export function isStalled(history: ExerciseSession[]): boolean {
 
 export const STALL_ADVICE = [
   'Revisa sueño (7-9 h) y proteína (1.6-2.2 g/kg).',
-  'Añade un día de descanso extra: en HD la respuesta suele ser más descanso, no menos.',
+  'Añade un día de descanso extra: muchas veces la respuesta es más descanso, no menos.',
   'Semana de descarga: −40 % de series y −10 % de carga.',
   'Cambia la variante del ejercicio.'
 ];

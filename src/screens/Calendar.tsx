@@ -146,7 +146,7 @@ export default function Calendar() {
             band={[2.75, 5]}
           />
           <div className="mt-4 rounded-xl border border-line p-4 text-sm text-muted">
-            Sesiones esta semana: <span className="num text-fg">{plan.days.length}</span> · Separación mínima: 48 h. En HD, ante la duda, descansa un día más.
+            Sesiones esta semana: <span className="num text-fg">{plan.days.length}</span> · Separación mínima: 48 h por músculo. Ante la duda, descansa un día más.
           </div>
         </Rise>
       </div>

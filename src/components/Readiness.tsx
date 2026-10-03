@@ -56,7 +56,7 @@ export function ReadinessSheet({
             <div className="flex gap-2">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               <span>
-                Han pasado <span className="num font-semibold">{Math.round(hoursSince!)} h</span> desde tu última sesión. Heavy Duty pide al menos 48 h para
+                Han pasado <span className="num font-semibold">{Math.round(hoursSince!)} h</span> desde tu última sesión. Tu split pide al menos 48 h para
                 recuperarte; entrenar antes puede frenar tu progreso.
               </span>
             </div>

@@ -49,7 +49,7 @@ const BAND_TONE: Record<string, string> = {
 };
 
 /** Barras de volumen "líquidas": el nivel sube con una ola en la superficie. */
-export function VolumePanel({ weekly }: { weekly: MuscleVolume[] }) {
+export function VolumePanel({ weekly, selected, onSelect }: { weekly: MuscleVolume[]; selected?: Muscle | null; onSelect?: (m: Muscle) => void }) {
   const reduce = useReducedMotion();
   return (
     <div className="grid grid-cols-5 gap-x-2 gap-y-5">
@@ -59,7 +59,13 @@ export function VolumePanel({ weekly }: { weekly: MuscleVolume[] }) {
         const bandLo = SMALL.includes(v.muscle) ? 4 / scale : 10 / scale;
         const bandHi = SMALL.includes(v.muscle) ? 8 / scale : 16 / scale;
         return (
-          <div key={v.muscle} className="flex flex-col items-center gap-1.5">
+          <button
+            key={v.muscle}
+            onClick={() => onSelect?.(v.muscle)}
+            aria-pressed={selected === v.muscle}
+            aria-label={`${MUSCLE_LABEL[v.muscle]}: ${fmtSets(v.sets)} series, ${BAND_LABEL[v.band]}. Ver recomendaciones`}
+            className={`press flex flex-col items-center gap-1.5 rounded-md p-1 ${selected === v.muscle ? 'bg-ember/10 ring-1 ring-ember' : ''} ${selected && selected !== v.muscle ? 'opacity-50' : ''}`}
+          >
             <div className="relative h-28 w-full max-w-[44px] overflow-hidden rounded-lg border border-line bg-raised/60" title={`${MUSCLE_LABEL[v.muscle]}: ${fmtSets(v.sets)} series · ${BAND_LABEL[v.band]}`}>
               <span className="absolute inset-x-0 border-y border-dashed border-ok/40 bg-ok/[0.06]" style={{ bottom: `${bandLo * 100}%`, height: `${(bandHi - bandLo) * 100}%` }} />
               <motion.div
@@ -77,7 +83,7 @@ export function VolumePanel({ weekly }: { weekly: MuscleVolume[] }) {
             <div className="num text-sm font-semibold">{fmtSets(v.sets)}</div>
             <div className="w-full truncate text-center text-[11px] leading-tight text-muted">{MUSCLE_LABEL[v.muscle]}</div>
             <div className={`text-[10px] font-medium uppercase tracking-wide ${BAND_TONE[v.band]}`}>{BAND_LABEL[v.band]}</div>
-          </div>
+          </button>
         );
       })}
     </div>

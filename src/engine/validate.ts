@@ -16,7 +16,7 @@ export function bandFor(m: Muscle, sets: number): VolumeBand {
 
 export const BAND_LABEL: Record<VolumeBand, string> = {
   bajo: 'Bajo',
-  minimo: 'Mínimo HD',
+  minimo: 'Mínimo',
   optimo: 'Óptimo',
   excesivo: 'Excesivo',
   ok: 'OK',
@@ -137,7 +137,7 @@ export function validatePlan(days: PrescribedDay[], config: EngineConfig): { wee
       });
     }
     if (v.band === 'excesivo') {
-      warnings.push({ kind: 'volumen', severity: 'aviso', text: `${MUSCLE_LABEL[v.muscle]}: ${fmtSets(v.sets)} series/semana, más de lo que se recupera en HD.` });
+      warnings.push({ kind: 'volumen', severity: 'aviso', text: `${MUSCLE_LABEL[v.muscle]}: ${fmtSets(v.sets)} series/semana, más de lo que la mayoría recupera bien.` });
     }
   }
 

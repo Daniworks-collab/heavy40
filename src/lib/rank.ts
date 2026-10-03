@@ -3,8 +3,8 @@ import { parseIso, weekKey } from './dates';
 import { streakWeeks } from './schedule';
 
 /**
- * Gamificación HEAVY·40. La XP premia lo que importa en Heavy Duty:
- * series efectivas, récords, constancia semanal y respetar los 40 minutos.
+ * Gamificación HEAVY·40. La XP premia lo que importa en hipertrofia:
+ * series efectivas, récords, constancia semanal y respetar tu tiempo.
  */
 export const XP = {
   workSet: 10,
@@ -26,7 +26,7 @@ export const RANKS: Rank[] = [
   { id: 'templado', name: 'Acero templado', min: 4000, tagline: 'Duro y flexible. Constancia probada.' },
   { id: 'titanio', name: 'Titanio', min: 9000, tagline: 'Ligero, brutal, difícil de doblar.' },
   { id: 'tungsteno', name: 'Tungsteno', min: 18000, tagline: 'El punto de fusión más alto.' },
-  { id: 'forjado', name: 'Forjado', min: 32000, tagline: 'Leyenda del Heavy Duty.' }
+  { id: 'forjado', name: 'Forjado', min: 32000, tagline: 'Leyenda de la forja.' }
 ];
 
 export function sessionXp(s: Pick<SessionRecord, 'sets' | 'prs' | 'durationSec' | 'budgetSec'>): number {

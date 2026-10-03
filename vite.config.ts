@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'HEAVY·40 — Heavy Duty en 40 minutos',
+        name: 'HEAVY·40 — Hipertrofia a tu medida',
         short_name: 'HEAVY·40',
-        description: 'Hipertrofia Heavy Duty: 3 días, máximo 40 minutos.',
+        description: 'Hipertrofia con cualquier split, en el tiempo que tengas.',
         lang: 'es-MX',
         theme_color: '#0A0A0B',
         background_color: '#0A0A0B',

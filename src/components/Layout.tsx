@@ -43,7 +43,7 @@ export function Layout() {
       {/* Sidebar escritorio */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-5 py-8 lg:flex">
         <Logo size={30} />
-        <p className="mt-2 text-xs text-muted">Heavy Duty · 3 días · sesiones cortas</p>
+        <p className="mt-2 text-xs text-muted">Hipertrofia · cualquier split · tu tiempo</p>
         <nav className="mt-10 flex flex-col gap-1" aria-label="Principal">
           {[...MAIN, ...MORE].map((n) => (
             <SideLink key={n.to} to={n.to} label={n.label} icon={<n.icon size={18} />} />

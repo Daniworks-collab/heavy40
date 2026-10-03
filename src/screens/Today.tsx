@@ -162,7 +162,7 @@ export function Today() {
             <div className="relative mt-5 rounded-lg border border-line bg-bg/60 p-4">
               <div className="eyebrow mb-1">Cuenta regresiva · {WEEKDAY_LONG[next!.date.getDay()]}</div>
               <div className="num text-3xl font-semibold tracking-tight">{countdown(nextAt.getTime() - now)}</div>
-              <p className="mt-1 text-sm text-muted">El músculo crece mientras descansas. En HD el descanso es parte del entrenamiento.</p>
+              <p className="mt-1 text-sm text-muted">El músculo crece mientras descansas. El descanso también es parte del entrenamiento.</p>
             </div>
           )}
 
@@ -170,7 +170,7 @@ export function Today() {
             <div className="hazard mt-4 flex gap-2 py-2.5 pr-3 text-sm">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden />
               <span>
-                Han pasado <span className="num">{Math.round(since)}</span> h desde tu última sesión. Heavy Duty pide ≥48 h entre sesiones.
+                Han pasado <span className="num">{Math.round(since)}</span> h desde tu última sesión. Tu split pide ≥48 h entre sesiones.
               </span>
             </div>
           )}
@@ -226,7 +226,7 @@ export function Today() {
             <Rise as="section" className="hazard-ember p-5">
               <div className="eyebrow mb-1 text-ember">Estancamiento detectado</div>
               <p className="text-sm">
-                Llevas 3 sesiones sin mejorar en {stalled.slice(0, 3).map((id) => getExercise(id).name).join(', ')}. En Heavy Duty la respuesta suele ser más
+                Llevas 3 sesiones sin mejorar en {stalled.slice(0, 3).map((id) => getExercise(id).name).join(', ')}. Muchas veces la respuesta es más
                 descanso: una semana de descarga (−40 % series, −10 % carga).
               </p>
               <button className="btn-ghost mt-3 w-full" onClick={() => scheduleDeload(isoDate(addDays(startOfWeek(today), 7)))}>

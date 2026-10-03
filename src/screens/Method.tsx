@@ -4,11 +4,29 @@ import { useState } from 'react';
 import { Page, PageTitle, Rise, SectionTitle } from '@/components/ui/Page';
 
 const PRINCIPLES = [
-  ['Intensidad', 'Cada serie efectiva se lleva al fallo o a 1 repetición de él. Una serie que no exige no cuenta.'],
-  ['Poco volumen', '1-2 series efectivas por ejercicio. Más series no compensan una serie floja.'],
-  ['Técnica estricta', 'Tempo controlado (2 s subir, 3 s bajar), sin rebotes ni impulso. Si la técnica se rompe, la serie terminó.'],
-  ['Progresión de carga', 'Doble progresión: primero repeticiones hasta el tope del rango, luego más peso.'],
-  ['Recuperación', 'El estímulo se da en el gimnasio; el crecimiento ocurre al descansar. ≥48 h entre sesiones, sueño y proteína suficientes.']
+  ['Esfuerzo real', 'Las series que cuentan se llevan cerca del fallo (0-3 reps en reserva). Una serie cómoda casi no estimula.'],
+  ['Volumen suficiente', 'Suma series efectivas por músculo a la semana; la zona útil suele estar entre ~10 y 16 en músculos grandes.'],
+  ['Frecuencia', 'Entrenar cada músculo 2 veces por semana suele rendir mejor que 1 con el mismo volumen. Tu split lo define.'],
+  ['Progresión de carga', 'Doble progresión: primero repeticiones hasta el tope del rango, luego más peso. Sin progresión no hay adaptación.'],
+  ['Recuperación', 'El estímulo se da en el gimnasio; el crecimiento ocurre al descansar. ≥48 h por músculo, sueño y proteína suficientes.']
+];
+
+const SPLITS_INFO = [
+  ['Heavy Duty 3 días', 'Pocas series, muy intensas, días de descanso entre sesiones. Ideal si tienes poco tiempo y te gusta entrenar al límite.'],
+  ['Full Body', 'Todo el cuerpo en cada sesión, 2-3 días. Alta frecuencia con pocas visitas al gimnasio.'],
+  ['Torso / Pierna', '4 días alternando torso y pierna. Cada músculo 2×/semana con buen volumen: el equilibrio clásico.'],
+  ['Push / Pull / Legs', 'Empuje, tirón y pierna. A 3 días cada músculo va 1×/semana; a 6 días, 2×/semana con mucho volumen.'],
+  ['Arnold', 'Pecho+espalda, hombro+brazo y pierna. Permite superseries antagonistas naturales.'],
+  ['Weider', 'Un grupo muscular por día. Mucho volumen por sesión pero frecuencia 1×/semana.'],
+  ['Personalizado', 'Tú decides cuántos días, cómo se llaman y qué lleva cada uno. La app calcula tiempos, volumen y avisos igual.']
+];
+
+const STYLES_INFO = [
+  ['HD Adaptado', 'Heavy Duty con lo que sugiere la evidencia actual: ~2 series en ejercicios clave, fallo sólo donde es seguro y 1 RIR en compuestos libres.'],
+  ['HD Puro', 'Mike Mentzer: 1 serie efectiva al fallo por ejercicio, 6-10 reps, técnicas como rest-pause y negativas. Dorian Yates lo popularizó con 2-3 calentamientos y una serie brutal.'],
+  ['Fast-40', 'Heavy Duty con pares antagonistas (pecho/espalda, bíceps/tríceps) para meter más series en poco tiempo.'],
+  ['Hipertrofia clásica', '3-4 series por ejercicio, 8-12 reps (aislamientos 10-15) a 1-2 reps del fallo, descansos de 45-120 s. Más volumen, menos intensidad por serie.'],
+  ['Personalizado', 'Tú eliges series, reps, esfuerzo, descansos y calentamientos. El motor respeta tus reglas y sólo recorta si no cabe en tu tiempo.']
 ];
 
 const GLOSSARY = [
@@ -18,7 +36,9 @@ const GLOSSARY = [
   ['Negativas', 'Bajar la carga muy lento (4-6 s) cuando ya no puedes subirla; en máquinas, sube con dos extremidades y baja con una.'],
   ['Repeticiones forzadas', 'Un compañero ayuda lo justo para 1-2 repeticiones más allá del fallo.'],
   ['Pre-agotamiento', 'Un aislamiento seguido sin descanso (15 s) de un compuesto del mismo músculo, para que el músculo objetivo falle antes que los auxiliares.'],
-  ['Tempo 2-0-3', 'Segundos de subida, pausa y bajada. HEAVY·40 usa 2 s subir, 0 pausa, 3 s bajar.'],
+  ['Tempo 2-0-4', 'Segundos de subida, pausa y bajada. Por defecto 2 s subir, 0 pausa, 4 s bajar; lo cambias en Ajustes.'],
+  ['Split', 'Cómo repartes los músculos en los días de la semana (PPL, Torso/Pierna, Full Body…).'],
+  ['Volumen semanal', 'Series efectivas por músculo en la semana. Directas cuentan 1; las indirectas (músculo secundario), 0.5.'],
   ['Serie efectiva', 'Serie al fallo o cerca de él que cuenta para el volumen. Los calentamientos no cuentan.'],
   ['e1RM', 'Máximo estimado a una repetición, calculado con la fórmula de Epley: carga × (1 + reps/30).'],
   ['Descarga', 'Semana con −40 % de series y −10 % de carga para disipar fatiga acumulada.']
@@ -53,27 +73,28 @@ const SCIENCE = [
 ];
 
 const FAQ = [
-  ['¿Por qué no voy al fallo en press banca o sentadilla?', 'Porque en compuestos libres el fallo sube mucho la fatiga y el riesgo sin aportar más crecimiento que quedarte a 1 repetición. Si tienes seguros bien puestos o un ayudante, puedes hacerlo en la última serie.'],
-  ['¿Por qué sesiones de 40 minutos?', 'Es el formato por defecto y lo puedes cambiar en Ajustes o el día que entrenes. La app protege tu límite de tiempo: si el día se pasa, recorta en orden (calentamientos secundarios, descansos de aislamiento, series extra) y te avisa. Nunca recorta en silencio.'],
-  ['¿Es suficiente volumen?', 'Es moderado. Con 3 sesiones de 40 min sueles llegar a ~6-8 series directas por músculo grande. Funciona, sobre todo si progresas la carga, pero no es el máximo posible. El panel de volumen te lo muestra con honestidad.'],
-  ['¿Qué modo elijo?', 'HD Adaptado si no sabes: mantiene la intensidad de Heavy Duty con lo que la evidencia actual sugiere. HD Puro si quieres la experiencia Mentzer. Fast-40 si quieres meter más series a cambio de menos descanso.'],
-  ['Me estanqué, ¿entreno más?', 'En Heavy Duty la respuesta suele ser lo contrario: revisa sueño y proteína, añade un día de descanso, o haz una semana de descarga antes de cambiar el ejercicio.'],
-  ['¿Esto sustituye a un entrenador o médico?', 'No. Es una herramienta. Si tienes lesiones, enfermedades o dudas, consulta a un profesional antes de entrenar al fallo.']
+  ['¿Qué split elijo?', 'El que puedas sostener. Con 2-3 días: Full Body o Heavy Duty. Con 4: Torso/Pierna. Con 5-6 y buena recuperación: PPL o Arnold. Si ninguno te queda, crea el tuyo en Splits.'],
+  ['¿Qué estilo elijo?', 'Hipertrofia clásica si quieres el enfoque más común y con más volumen. HD Adaptado si tienes poco tiempo y te gusta la intensidad. Personalizado si ya sabes exactamente cómo quieres entrenar.'],
+  ['¿Por qué no voy al fallo en press banca o sentadilla?', 'En compuestos libres el fallo sube mucho la fatiga y el riesgo sin aportar más crecimiento que quedarte a 1-2 repeticiones. Con seguros bien puestos o un ayudante, puedes hacerlo en la última serie.'],
+  ['¿Cómo protege la app mi tiempo?', 'Eliges cuántos minutos tienes. Si el día se pasa, recorta en orden (calentamientos secundarios, descansos de aislamiento, series extra) y te dice qué quitó. Nunca recorta en silencio.'],
+  ['¿Es suficiente mi volumen?', 'Revísalo en Mi rutina: cada músculo muestra sus series semanales y su zona. Si alguno queda bajo o alto, la app te propone qué ejercicio cambiar, con series y reps, y cómo quedaría.'],
+  ['Me estanqué, ¿entreno más?', 'Muchas veces es lo contrario: revisa sueño y proteína, añade un día de descanso o haz una semana de descarga antes de cambiar el ejercicio.'],
+  ['¿Esto sustituye a un entrenador o médico?', 'No. Es una herramienta. Si tienes lesiones, enfermedades o dudas, consulta a un profesional antes de entrenar cerca del fallo.']
 ];
 
 export default function Method() {
   return (
     <Page>
-      <PageTitle eyebrow="Mentzer · Yates · evidencia actual" title="Método" />
+      <PageTitle eyebrow="Hipertrofia basada en evidencia" title="Método" />
 
       <Rise as="section" className="card relative overflow-hidden p-6 lg:p-8">
         <div className="pointer-events-none absolute -bottom-16 -right-10 font-display text-[200px] font-black leading-none text-fg/[0.03]" aria-hidden>
-          HD
+          40
         </div>
-        <div className="eyebrow mb-2 text-ember">Heavy Duty</div>
+        <div className="eyebrow mb-2 text-ember">Cómo funciona HEAVY·40</div>
         <p className="max-w-2xl text-lg leading-relaxed">
-          Mike Mentzer propuso entrenar <strong>breve, infrecuente e intenso</strong>: 1-2 series al fallo por ejercicio, 6-10 repeticiones, y 4-7 días antes de volver a
-          entrenar el mismo músculo. Dorian Yates lo llevó a la práctica con 2-3 series de calentamiento y 1-2 series efectivas brutales.
+          Tú eliges el <strong>split</strong> (qué días y qué ejercicios), el <strong>estilo</strong> (cuántas series, reps y qué tan cerca del fallo) y el{' '}
+          <strong>tiempo</strong> que tienes. La app arma cada sesión para que quepa, te guía serie por serie y te dice cómo va tu volumen por músculo.
         </p>
       </Rise>
 
@@ -91,18 +112,27 @@ export default function Method() {
       </Rise>
 
       <Rise as="section">
-        <SectionTitle>HD Adaptado: la decisión de diseño</SectionTitle>
-        <div className="card p-5 lg:p-6">
-          <p className="leading-relaxed">
-            HEAVY·40 conserva lo esencial de Heavy Duty (intensidad, poco volumen por sesión, doble progresión y descanso como prioridad) y ajusta tres cosas según la
-            evidencia actual:
-          </p>
-          <ul className="mt-3 space-y-2">
-            <li className="flex gap-3"><span className="text-ember">—</span>~2 series efectivas en los ejercicios clave en lugar de 1.</li>
-            <li className="flex gap-3"><span className="text-ember">—</span>Cada músculo grande se entrena 2×/semana (directo o indirecto).</li>
-            <li className="flex gap-3"><span className="text-ember">—</span>Fallo total sólo en máquinas, poleas y aislamientos; 1 RIR en compuestos libres.</li>
-          </ul>
-        </div>
+        <SectionTitle>Splits</SectionTitle>
+        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {SPLITS_INFO.map(([t, d]) => (
+            <div key={t} className="rounded-md border border-line px-4 py-3">
+              <dt className="font-display text-lg font-bold uppercase">{t}</dt>
+              <dd className="text-sm text-muted">{d}</dd>
+            </div>
+          ))}
+        </dl>
+      </Rise>
+
+      <Rise as="section">
+        <SectionTitle>Estilos</SectionTitle>
+        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {STYLES_INFO.map(([t, d]) => (
+            <div key={t} className="rounded-md border border-line px-4 py-3">
+              <dt className="font-display text-lg font-bold uppercase text-ember">{t}</dt>
+              <dd className="text-sm text-muted">{d}</dd>
+            </div>
+          ))}
+        </dl>
       </Rise>
 
       <Rise as="section">
@@ -119,9 +149,9 @@ export default function Method() {
         <div className="mt-4 rounded-2xl border border-warn/40 bg-warn/[0.07] p-5">
           <div className="eyebrow mb-1 text-warn">Nota honesta</div>
           <p className="text-sm leading-relaxed">
-            Con 40 minutos × 3 días, el volumen semanal es moderado (~6-8 series directas por músculo grande), por debajo de lo que la literatura asocia con el máximo
-            crecimiento. Es un compromiso a cambio de sesiones cortas y sostenibles. La app te lo muestra en el panel de volumen y no promete resultados. No sustituye
-            consejo médico.
+            Con pocos días o sesiones cortas, el volumen semanal puede quedar moderado (~6-8 series directas por músculo grande), por debajo de lo que la literatura
+            asocia con el máximo crecimiento. Es un compromiso a cambio de sesiones sostenibles. La app te lo muestra en el panel de volumen, te propone ajustes y no
+            promete resultados. No sustituye consejo médico.
           </p>
         </div>
       </Rise>

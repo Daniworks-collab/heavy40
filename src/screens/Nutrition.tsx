@@ -85,7 +85,7 @@ export default function Nutrition() {
               <span className="eyebrow">Sueño</span>
             </div>
             <p className="mt-2 text-sm">
-              Meta: <span className="num font-semibold">{sleepGoal} h</span>. En HD el sueño es la mitad del método: 7-9 h es el rango recomendado para adultos.
+              Meta: <span className="num font-semibold">{sleepGoal} h</span>. El sueño es la mitad del progreso: 7-9 h es el rango recomendado para adultos.
             </p>
             <div className="mt-3 flex gap-2">
               {[7, 7.5, 8, 8.5, 9].map((h) => (

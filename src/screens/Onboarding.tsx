@@ -100,14 +100,14 @@ export function Onboarding() {
             <Logo size={64} />
           </motion.div>
           <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="h-display relative mt-6 text-[56px] leading-[0.9]">
-            Breve.
+            Tu split.
             <br />
-            Intenso.
+            Tu tiempo.
             <br />
-            <span className="text-ember">Infrecuente.</span>
+            <span className="text-ember">Tu forja.</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }} className="relative mt-5 max-w-sm text-muted">
-            Heavy Duty en sesiones cortas (40 minutos o el tiempo que tengas), 3 días por semana. Una rutina que se recalcula sola cada vez que la cambias.
+            Entrena hipertrofia con el split que quieras (Heavy Duty, PPL, Torso/Pierna, Full Body o el tuyo) en el tiempo que tengas. Una rutina que se recalcula sola cada vez que la cambias.
           </motion.p>
         </div>
       );
@@ -179,7 +179,7 @@ export function Onboarding() {
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-muted">Heavy Duty funciona con sesiones cortas. Lo puedes cambiar en Ajustes o el día que entrenes.</p>
+            <p className="mt-1.5 text-xs text-muted">Lo puedes cambiar en Ajustes o el día que entrenes; la rutina se ajusta para caber.</p>
           </div>
           <div className="mb-2 font-medium">Tu split</div>
           <div className="grid gap-1.5" role="radiogroup" aria-label="Split">
@@ -327,7 +327,7 @@ export function Onboarding() {
       break;
     case 8:
       body = (
-        <Step eyebrow="Opcional · estilo HD" title="Calibración">
+        <Step eyebrow="Opcional" title="Calibración">
           <p className="mb-4 text-sm text-muted">
             Escribe una serie reciente (carga × reps). Calculamos la carga para ~6 reps estrictas al fallo (tren superior) u 8 (inferior). Puedes saltarlo y calibrar en tu primera sesión.
           </p>
